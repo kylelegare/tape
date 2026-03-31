@@ -38,7 +38,9 @@ final class TranscriptionService {
         // Configure params with vocabulary as initial prompt
         if !vocabulary.isEmpty {
             let prompt = vocabulary.joined(separator: ", ")
-            whisper.params.initial_prompt = UnsafePointer(strdup(prompt))
+            let promptCString = strdup(prompt)
+            defer { free(promptCString) }
+            whisper.params.initial_prompt = UnsafePointer(promptCString)
         }
 
         // Run transcription

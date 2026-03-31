@@ -1,7 +1,8 @@
 import Foundation
 
 struct Meeting: Identifiable {
-    let id = UUID()
+    /// Stable identity derived from the backing file path so SwiftUI rows survive reloads.
+    var id: String { filePath?.absoluteString ?? "\(title)-\(date.timeIntervalSince1970)" }
     let title: String
     let date: Date
     let duration: TimeInterval?
@@ -10,9 +11,3 @@ struct Meeting: Identifiable {
     let filePath: URL?
 }
 
-struct UpcomingMeeting: Identifiable {
-    let id = UUID()
-    let title: String
-    let startDate: Date
-    let endDate: Date
-}

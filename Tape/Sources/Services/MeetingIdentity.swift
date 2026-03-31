@@ -21,7 +21,7 @@ struct MeetingIdentity {
     ]
 
     @MainActor
-    static func resolve(calendarService: CalendarService?) -> MeetingIdentity {
+    static func resolve() -> MeetingIdentity {
         let frontmostApp = NSWorkspace.shared.frontmostApplication
         let bundleID = frontmostApp?.bundleIdentifier ?? ""
         let appName = meetingApps[bundleID] ?? frontmostApp?.localizedName ?? "Unknown"
@@ -34,12 +34,7 @@ struct MeetingIdentity {
             }
         }
 
-        // Layer 2: Try calendar match
-        if let calendarService, let event = calendarService.matchEvent(at: Date()) {
-            return MeetingIdentity(title: event.title, source: appName)
-        }
-
-        // Layer 3: Fallback to app name + timestamp
+        // Layer 2: Fallback to app name + timestamp
         let timestamp = Date().formatted(date: .abbreviated, time: .shortened)
         return MeetingIdentity(title: "\(appName) — \(timestamp)", source: appName)
     }

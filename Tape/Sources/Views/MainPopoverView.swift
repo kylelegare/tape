@@ -1,111 +1,135 @@
 import SwiftUI
 
 struct MainPopoverView: View {
-    @ObservedObject var calendarService: CalendarService
     @ObservedObject var recordingManager: RecordingManager
     @ObservedObject var meetingStore: MeetingStore
 
     var body: some View {
         VStack(spacing: 0) {
-            UpcomingMeetingsSection(events: calendarService.upcomingEvents)
+            RecordHero(recordingManager: recordingManager)
 
             Divider()
 
-            PreviousMeetingsSection(meetings: meetingStore.meetings, store: meetingStore)
+            RecordingsList(meetings: meetingStore.meetings, store: meetingStore)
 
             Divider()
 
-            BottomBar(recordingManager: recordingManager)
+            MiniFooter()
         }
-        .frame(width: 340, height: 480)
+        .frame(width: 320, height: 420)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 
-// MARK: - Upcoming Meetings
+// MARK: - Record Hero
 
-struct UpcomingMeetingsSection: View {
-    let events: [UpcomingMeeting]
+/// Top section — the primary action. Shows Record button when idle,
+/// live status + Stop when recording, progress when transcribing.
+struct RecordHero: View {
+    @ObservedObject var recordingManager: RecordingManager
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Upcoming")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-
-            if events.isEmpty {
-                Text("Add calendar in Settings")
-                    .font(.subheadline)
-                    .foregroundStyle(.tertiary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 20)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 2) {
-                        ForEach(events) { event in
-                            UpcomingMeetingRow(event: event)
-                        }
-                    }
-                    .padding(.horizontal, 8)
-                }
-                .frame(maxHeight: 180)
+        Group {
+            switch recordingManager.state {
+            case .idle:
+                idleView
+            case .recording:
+                recordingView
+            case .transcribing:
+                transcribingView
             }
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
     }
-}
 
-struct UpcomingMeetingRow: View {
-    let event: UpcomingMeeting
+    private var idleView: some View {
+        Button {
+            recordingManager.startOneOffRecording()
+        } label: {
+            Label("Record", systemImage: "record.circle.fill")
+                .font(.system(size: 14, weight: .medium))
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+        .tint(.red)
+    }
 
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(event.title)
-                    .font(.subheadline)
+    private var recordingView: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "record.circle.fill")
+                .foregroundStyle(.red)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(recordingManager.currentMeetingTitle ?? "recording")
+                    .font(.subheadline).fontWeight(.medium)
                     .lineLimit(1)
-                Text(event.startDate.formatted(date: .abbreviated, time: .shortened))
+                Text(formattedDuration)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .monospacedDigit()
             }
             Spacer()
+            Button("Stop") {
+                recordingManager.stopRecording()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 8)
-        .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary.opacity(0.5)))
+    }
+
+    private var transcribingView: some View {
+        HStack(spacing: 10) {
+            ProgressView().scaleEffect(0.75)
+            Text(recordingManager.statusMessage ?? "Transcribing…")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+    }
+
+    private var formattedDuration: String {
+        let total = Int(recordingManager.recordingDuration)
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        let s = total % 60
+        return h > 0
+            ? String(format: "%d:%02d:%02d", h, m, s)
+            : String(format: "%02d:%02d", m, s)
     }
 }
 
-// MARK: - Previous Meetings
+// MARK: - Recordings List
 
-struct PreviousMeetingsSection: View {
+struct RecordingsList: View {
     let meetings: [Meeting]
     let store: MeetingStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Previous")
-                .font(.headline)
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Recordings")
+                .font(.caption)
+                .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
+                .padding(.horizontal, 12)
+                .padding(.top, 10)
+                .padding(.bottom, 6)
 
             if meetings.isEmpty {
-                ScrollView {
-                    Text("No recordings yet")
-                        .font(.subheadline)
-                        .foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 20)
-                }
+                Text("No recordings yet")
+                    .font(.subheadline)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else {
                 ScrollView {
                     LazyVStack(spacing: 2) {
                         ForEach(meetings) { meeting in
-                            PreviousMeetingRow(meeting: meeting, store: store)
+                            RecordingRow(meeting: meeting, store: store)
                         }
                     }
                     .padding(.horizontal, 8)
+                    .padding(.bottom, 8)
                 }
             }
         }
@@ -113,7 +137,7 @@ struct PreviousMeetingsSection: View {
     }
 }
 
-struct PreviousMeetingRow: View {
+struct RecordingRow: View {
     let meeting: Meeting
     let store: MeetingStore
 
@@ -122,7 +146,7 @@ struct PreviousMeetingRow: View {
     @FocusState private var renameFocused: Bool
 
     var body: some View {
-        HStack {
+        HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     if isRenaming {
@@ -144,10 +168,10 @@ struct PreviousMeetingRow: View {
                             .foregroundStyle(.orange)
                     }
                 }
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     Text(meeting.date.formatted(date: .abbreviated, time: .shortened))
                     if let duration = meeting.duration {
-                        Text("\(Int(duration / 60))min")
+                        Text("\(Int(duration / 60))m")
                     }
                 }
                 .font(.caption)
@@ -185,135 +209,40 @@ struct PreviousMeetingRow: View {
     }
 }
 
-// MARK: - Bottom Bar
+// MARK: - Mini Footer
 
-/// Unified toolbar + status. Replaces the old split RecordingStatusBar / FooterBar.
-/// Layout: status row (when active) + icon toolbar [folder | record/stop | settings]
-struct BottomBar: View {
-    @ObservedObject var recordingManager: RecordingManager
-
+struct MiniFooter: View {
     var body: some View {
-        VStack(spacing: 0) {
-            // Status row — only shown when there's something to report
-            if showStatusRow {
-                statusRow
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 7)
-                Divider()
+        HStack(spacing: 0) {
+            Button {
+                NSWorkspace.shared.open(URL(fileURLWithPath: resolvedOutputFolder()))
+            } label: {
+                Image(systemName: "folder")
+                    .frame(maxWidth: .infinity)
             }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("Open recordings folder")
 
-            // Icon toolbar
-            HStack(spacing: 0) {
-                // Open recordings folder
-                Button {
-                    openOutputFolder()
-                } label: {
-                    Image(systemName: "folder")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .help("Open recordings folder in Finder")
+            Divider().frame(height: 14)
 
-                Divider().frame(height: 16)
-
-                // Record / Stop
-                Group {
-                    if recordingManager.state == .recording {
-                        Button {
-                            recordingManager.stopRecording()
-                        } label: {
-                            HStack(spacing: 5) {
-                                Image(systemName: "stop.circle")
-                                Text("Stop")
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                        .foregroundStyle(.red)
-                    } else {
-                        Button {
-                            recordingManager.startOneOffRecording()
-                        } label: {
-                            HStack(spacing: 5) {
-                                Image(systemName: "record.circle")
-                                Text("Record")
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                        .foregroundStyle(.secondary)
-                        .disabled(recordingManager.state == .transcribing)
-                    }
-                }
-                .buttonStyle(.plain)
-
-                Divider().frame(height: 16)
-
-                // Settings
-                Button {
-                    NotificationCenter.default.post(name: .openSettings, object: nil)
-                } label: {
-                    Image(systemName: "gear")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .help("Settings")
+            Button {
+                NotificationCenter.default.post(name: .openSettings, object: nil)
+            } label: {
+                Image(systemName: "gear")
+                    .frame(maxWidth: .infinity)
             }
-            .font(.system(size: 13))
-            .padding(.vertical, 10)
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("Settings")
         }
-    }
-
-    private var showStatusRow: Bool {
-        recordingManager.state != .idle || recordingManager.statusMessage != nil
-    }
-
-    @ViewBuilder
-    private var statusRow: some View {
-        switch recordingManager.state {
-        case .idle:
-            if let message = recordingManager.statusMessage {
-                HStack(spacing: 6) {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                    Text(message).lineLimit(1)
-                    Spacer()
-                }
-                .font(.caption)
-            }
-        case .recording:
-            HStack(spacing: 6) {
-                Image(systemName: "record.circle.fill").foregroundStyle(.red)
-                Text("\(recordingManager.currentMeetingTitle ?? "recording") — \(formattedDuration)")
-                    .lineLimit(1)
-                Spacer()
-            }
-            .font(.caption)
-        case .transcribing:
-            HStack(spacing: 6) {
-                Image(systemName: "arrow.triangle.2.circlepath").foregroundStyle(.orange)
-                Text(recordingManager.statusMessage ?? "transcribing…").lineLimit(1)
-                Spacer()
-            }
-            .font(.caption)
-        }
-    }
-
-    private var formattedDuration: String {
-        let total = Int(recordingManager.recordingDuration)
-        let h = total / 3600
-        let m = (total % 3600) / 60
-        let s = total % 60
-        return h > 0 ? String(format: "%d:%02d:%02d", h, m, s) : String(format: "%02d:%02d", m, s)
-    }
-
-    private func openOutputFolder() {
-        let path = UserDefaults.standard.string(forKey: "outputFolderPath")
-            ?? GeneralSettingsTab.defaultOutputFolder()
-        NSWorkspace.shared.open(URL(fileURLWithPath: path))
+        .font(.system(size: 13))
+        .padding(.vertical, 9)
     }
 }
 
+// MARK: - Notification names
+
 extension Notification.Name {
     static let openSettings = Notification.Name("openSettings")
-    static let syncCalendar = Notification.Name("syncCalendar")
 }

@@ -23,6 +23,8 @@ struct MeetingDetailView: View {
             editableTitle = meeting.title
             context = store.readContext(for: meeting)
             transcript = store.readTranscript(for: meeting)
+            // Reset after initial state assignment so onChange doesn't show a phantom Save button
+            DispatchQueue.main.async { hasUnsavedChanges = false }
         }
     }
 
@@ -147,11 +149,17 @@ func openMeetingDetailPanel(meeting: Meeting, store: MeetingStore) {
     panel.makeKeyAndOrderFront(nil)
 
     openDetailPanels.append(panel)
-    NotificationCenter.default.addObserver(
+
+    // Capture token so it can be removed on close — prevents accumulating dead observers.
+    // Stored in a class wrapper so the closure can reference it without a mutability warning.
+    final class TokenBox: @unchecked Sendable { var value: NSObjectProtocol? }
+    let box = TokenBox()
+    box.value = NotificationCenter.default.addObserver(
         forName: NSWindow.willCloseNotification,
         object: panel,
         queue: .main
-    ) { _ in
+    ) { [weak panel] _ in
         openDetailPanels.removeAll { $0 === panel }
+        if let t = box.value { NotificationCenter.default.removeObserver(t) }
     }
 }

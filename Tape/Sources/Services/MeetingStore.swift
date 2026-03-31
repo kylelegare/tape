@@ -7,11 +7,10 @@ final class MeetingStore: ObservableObject {
     @Published var meetings: [Meeting] = []
 
     private var folderWatcher: DispatchSourceFileSystemObject?
+    private var outputFolderObserver: NSObjectProtocol?
 
     func loadMeetings() {
-        let outputPath = UserDefaults.standard.string(forKey: "outputFolderPath")
-            ?? GeneralSettingsTab.defaultOutputFolder()
-        let outputDir = URL(fileURLWithPath: outputPath)
+        let outputDir = URL(fileURLWithPath: resolvedOutputFolder())
 
         guard let files = try? FileManager.default.contentsOfDirectory(
             at: outputDir,
@@ -30,10 +29,34 @@ final class MeetingStore: ObservableObject {
 
     func startWatching() {
         loadMeetings()
+        armFolderSource()
 
-        let outputPath = UserDefaults.standard.string(forKey: "outputFolderPath")
-            ?? GeneralSettingsTab.defaultOutputFolder()
+        // Re-arm whenever the output folder path changes in Settings
+        outputFolderObserver = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: UserDefaults.standard,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.armFolderSource() }
+        }
+    }
 
+    func stopWatching() {
+        folderWatcher?.cancel()
+        folderWatcher = nil
+        if let obs = outputFolderObserver {
+            NotificationCenter.default.removeObserver(obs)
+            outputFolderObserver = nil
+        }
+    }
+
+    private func armFolderSource() {
+        // Cancel existing source first to prevent fd leaks when re-arming
+        folderWatcher?.cancel()
+        folderWatcher = nil
+        loadMeetings()
+
+        let outputPath = resolvedOutputFolder()
         let fd = open(outputPath, O_EVTONLY)
         guard fd >= 0 else { return }
 
@@ -50,11 +73,6 @@ final class MeetingStore: ObservableObject {
         }
         source.resume()
         folderWatcher = source
-    }
-
-    func stopWatching() {
-        folderWatcher?.cancel()
-        folderWatcher = nil
     }
 
     // MARK: - Frontmatter Parsing

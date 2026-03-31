@@ -4,11 +4,11 @@ import UserNotifications
 
 /// Orchestrates the full recording lifecycle.
 ///
-/// Detection model (Char-style):
-///   mic active → system notification prompt → user taps "Record" → recording starts
+/// Auto-detection flow (requires signed build):
+///   mic active → notification prompt → user taps "Record" → recording starts
 ///   mic released OR meeting app closes → grace window → finalize → transcribe → .md
 ///
-/// Also supports manual one-off recording from the popover Record button.
+/// Manual flow: user taps Record button in the popover.
 @MainActor
 final class RecordingManager: ObservableObject {
     @Published var state: RecordingState = .idle
@@ -16,7 +16,7 @@ final class RecordingManager: ObservableObject {
     @Published var recordingDuration: TimeInterval = 0
     @Published var statusMessage: String?
 
-    let calendarService: CalendarService
+    private var isFinalizing = false
 
     private let audioRecorder = AudioRecorder()
     private let micWatcher = MicWatcher()
@@ -44,13 +44,15 @@ final class RecordingManager: ObservableObject {
         "com.tinyspeck.slackmacgap",
     ]
 
-    init(calendarService: CalendarService) {
-        self.calendarService = calendarService
+    init() {
         setupMicWatcher()
     }
 
     func start() {
-        micWatcher.start()
+        // Mic detection (auto-prompt on mic grab) requires a signed/notarized build —
+        // macOS Sequoia privacy APIs return incorrect state for unsigned debug builds.
+        // Re-enable micWatcher.start() once distributed via Developer ID or App Store.
+        // micWatcher.start()
     }
 
     func stop() {
@@ -62,7 +64,7 @@ final class RecordingManager: ObservableObject {
     /// Called by AppDelegate when the user taps "Record" in the mic-active notification.
     func startRecordingFromPrompt() {
         pendingNotificationID = nil
-        let identity = MeetingIdentity.resolve(calendarService: calendarService)
+        let identity = MeetingIdentity.resolve()
         Task { await startRecording(identity: identity) }
     }
 
@@ -118,13 +120,8 @@ final class RecordingManager: ObservableObject {
         let content = UNMutableNotificationContent()
         content.title = "tape"
 
-        // Include nearby calendar event as context (within 15 min)
-        let now = Date()
-        let nearbyEvent = calendarService.upcomingEvents.first {
-            abs($0.startDate.timeIntervalSince(now)) < 15 * 60
-        }
-        content.body = nearbyEvent.map { "mic is active — \"\($0.title)\"" } ?? "mic is active — record?"
-        content.categoryIdentifier = "TAPE_MIC_ACTIVE"
+        content.body = "mic is active — record?"
+        content.categoryIdentifier = TapeNotificationID.categoryMicActive
         content.sound = nil
 
         let notifID = "tape-mic-\(Int(Date().timeIntervalSince1970))"
@@ -194,8 +191,13 @@ final class RecordingManager: ObservableObject {
 
     private func startGracePeriod() {
         guard graceTimer == nil else { return } // already counting down
-        let graceDuration = UserDefaults.standard.integer(forKey: "graceWindowDuration")
-        let graceSeconds = graceDuration > 0 ? graceDuration : 30
+        let graceSeconds = UserDefaults.standard.integer(forKey: "graceWindowDuration")
+        // 0 = "off" in Settings → stop immediately; default registered at launch is 30
+
+        if graceSeconds == 0 {
+            Task { await finalizeRecording() }
+            return
+        }
 
         statusMessage = "finishing in \(graceSeconds)s…"
         graceTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(graceSeconds), repeats: false) { [weak self] _ in
@@ -206,6 +208,10 @@ final class RecordingManager: ObservableObject {
     }
 
     private func finalizeRecording() async {
+        guard !isFinalizing else { return }
+        isFinalizing = true
+        defer { isFinalizing = false }
+
         graceTimer?.invalidate()
         graceTimer = nil
         meetingPollTimer?.invalidate()
@@ -286,9 +292,7 @@ final class RecordingManager: ObservableObject {
     // MARK: - Markdown Output
 
     private func writeMeetingFile(identity: MeetingIdentity, duration: TimeInterval, transcript: String, partial: Bool = false) {
-        let outputPath = UserDefaults.standard.string(forKey: "outputFolderPath")
-            ?? GeneralSettingsTab.defaultOutputFolder()
-        let outputDir = URL(fileURLWithPath: outputPath)
+        let outputDir = URL(fileURLWithPath: resolvedOutputFolder())
 
         try? FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
 
@@ -297,26 +301,36 @@ final class RecordingManager: ObservableObject {
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let dateString = dateFormatter.string(from: date)
 
+        let startDate = recordingStartTime ?? date
+
         let timeFormatter = DateFormatter()
         timeFormatter.dateFormat = "HH:mm"
-        let timeString = timeFormatter.string(from: recordingStartTime ?? date)
+        let timeString = timeFormatter.string(from: startDate)
+
+        // HH-mm in filename prevents silent overwrite when two recordings share the same title on the same day
+        let fileTimeFormatter = DateFormatter()
+        fileTimeFormatter.dateFormat = "HH-mm"
+        let fileTimeString = fileTimeFormatter.string(from: startDate)
 
         let slug = identity.title
             .lowercased()
+            .replacingOccurrences(of: "/", with: "-")   // prevent path traversal
             .replacingOccurrences(of: " ", with: "-")
             .replacingOccurrences(of: "[^a-z0-9\\-]", with: "", options: .regularExpression)
             .prefix(60)
 
-        let filename = "\(dateString)-\(slug).md"
+        let filename = "\(dateString)-\(fileTimeString)-\(slug).md"
         let fileURL = outputDir.appendingPathComponent(filename)
 
         let durationMinutes = Int(duration / 60)
         let userName = UserDefaults.standard.string(forKey: "userName") ?? ""
         let speakerName = userName.isEmpty ? "Speaker 1" : userName
 
+        // Quote title in YAML to prevent frontmatter corruption if it contains a colon
+        let escapedTitle = identity.title.contains(":") ? "\"\(identity.title)\"" : identity.title
         let content = """
         ---
-        title: \(identity.title)
+        title: \(escapedTitle)
         date: \(dateString)
         time: \(timeString)
         duration: \(durationMinutes)min

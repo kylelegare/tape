@@ -211,16 +211,18 @@ final class AudioRecorder {
 
         let sysDuration = try await sysAsset.load(.duration)
         let micDuration = try await micAsset.load(.duration)
-        let duration = CMTimeMaximum(sysDuration, micDuration)
-        let timeRange = CMTimeRange(start: .zero, duration: duration)
 
+        // Each track is inserted only up to its own duration to avoid AVErrorInvalidTimeRange
+        // when one source is shorter than the other.
         if let sysTrack = try await sysAsset.loadTracks(withMediaType: .audio).first {
             let t = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
-            try t?.insertTimeRange(timeRange, of: sysTrack, at: .zero)
+            let range = CMTimeRange(start: .zero, duration: sysDuration)
+            try t?.insertTimeRange(range, of: sysTrack, at: .zero)
         }
         if let micTrack = try await micAsset.loadTracks(withMediaType: .audio).first {
             let t = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
-            try t?.insertTimeRange(timeRange, of: micTrack, at: .zero)
+            let range = CMTimeRange(start: .zero, duration: micDuration)
+            try t?.insertTimeRange(range, of: micTrack, at: .zero)
         }
 
         guard let exporter = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetAppleM4A) else {

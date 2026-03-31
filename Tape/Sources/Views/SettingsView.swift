@@ -9,9 +9,6 @@ struct SettingsView: View {
             RecordingSettingsTab()
                 .tabItem { Label("Recording", systemImage: "waveform") }
 
-            CalendarSettingsTab()
-                .tabItem { Label("Calendar", systemImage: "calendar") }
-
             VocabularySettingsTab()
                 .tabItem { Label("Vocabulary", systemImage: "text.book.closed") }
         }
@@ -22,7 +19,7 @@ struct SettingsView: View {
 // MARK: - General
 
 struct GeneralSettingsTab: View {
-    @AppStorage("outputFolderPath") private var outputFolderPath: String = defaultOutputFolder()
+    @AppStorage("outputFolderPath") private var outputFolderPath: String = tapeOutputFolder()
     @AppStorage("launchAtLogin") private var launchAtLogin = false
 
     var body: some View {
@@ -57,12 +54,6 @@ struct GeneralSettingsTab: View {
         }
     }
 
-    static func defaultOutputFolder() -> String {
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let tapePath = documentsPath.appendingPathComponent("Tape")
-        try? FileManager.default.createDirectory(at: tapePath, withIntermediateDirectories: true)
-        return tapePath.path
-    }
 }
 
 // MARK: - Recording
@@ -108,47 +99,6 @@ struct RecordingSettingsTab: View {
         }
         .formStyle(.grouped)
         .padding()
-    }
-}
-
-// MARK: - Calendar
-
-struct CalendarSettingsTab: View {
-    @State private var icsURL = ""
-    @State private var lastSynced: Date?
-
-    var body: some View {
-        Form {
-            Section("ICS Feed") {
-                TextField("ICS Feed URL", text: $icsURL, prompt: Text("https://calendar.google.com/..."))
-                    .onAppear { loadICSURL() }
-
-                if let lastSynced {
-                    Text("Last synced: \(lastSynced.formatted())")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                HStack {
-                    Button("Save") { saveICSURL() }
-                    Button("Sync Now") { syncCalendar() }
-                }
-            }
-        }
-        .formStyle(.grouped)
-        .padding()
-    }
-
-    private func loadICSURL() {
-        icsURL = KeychainService.load(key: "icsURL") ?? ""
-    }
-
-    private func saveICSURL() {
-        KeychainService.save(key: "icsURL", value: icsURL)
-    }
-
-    private func syncCalendar() {
-        NotificationCenter.default.post(name: .syncCalendar, object: nil)
     }
 }
 
