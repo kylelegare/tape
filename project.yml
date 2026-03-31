@@ -1,0 +1,43 @@
+name: Tape
+options:
+  bundleIdPrefix: com.legare
+  deploymentTarget:
+    macOS: "15.0"
+  xcodeVersion: "16.0"
+  minimumXcodeGenVersion: "2.35"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MACOSX_DEPLOYMENT_TARGET: "15.0"
+    DEVELOPMENT_TEAM: ""
+
+packages:
+  SwiftWhisper:
+    url: https://github.com/exPHAT/SwiftWhisper.git
+    branch: master
+
+targets:
+  Tape:
+    type: application
+    platform: macOS
+    sources:
+      - path: Tape/Sources
+      - path: Tape/Resources
+        buildPhase: resources
+    dependencies:
+      - package: SwiftWhisper
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.legare.tape
+        PRODUCT_NAME: Tape
+        INFOPLIST_FILE: Tape/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Tape/Resources/Tape.entitlements
+        ENABLE_HARDENED_RUNTIME: true
+        COMBINE_HIDPI_IMAGES: true
+    entitlements:
+      path: Tape/Resources/Tape.entitlements
+      properties:
+        com.apple.security.app-sandbox: false
+        com.apple.security.device.audio-input: true
