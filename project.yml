@@ -26,6 +26,9 @@ targets:
       - path: Tape/Sources
       - path: Tape/Resources
         buildPhase: resources
+        excludes:
+          - Info.plist
+          - Tape.entitlements
     dependencies:
       - package: SwiftWhisper
     settings:

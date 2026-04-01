@@ -1,9 +1,8 @@
 import AppKit
 import Combine
 import SwiftUI
-import UserNotifications
 
-final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var popoverWindow: NSWindow?
     private var eventMonitor: Any?
@@ -13,20 +12,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     private var stateCancellable: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Register factory defaults so UserDefaults.integer(forKey:) returns sensible values
-        // even before the user opens Settings. graceWindowDuration 0 means "off" (immediate stop).
         UserDefaults.standard.register(defaults: [
-            "graceWindowDuration": 30,
-            "minimumDuration": 5
+            "minimumDuration": 5,
+            "whisperModel": "tiny"
         ])
 
         recordingManager = RecordingManager()
         meetingStore = MeetingStore()
 
         setupMenuBar()
-        setupNotifications()
-
-        recordingManager.start()
         meetingStore.startWatching()
 
         stateCancellable = recordingManager.$state.receive(on: DispatchQueue.main).sink { [weak self] state in
@@ -39,63 +33,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             name: .openSettings,
             object: nil
         )
-
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        recordingManager.stop()
         meetingStore.stopWatching()
-    }
-
-    // MARK: - Notifications
-
-    private func setupNotifications() {
-        let center = UNUserNotificationCenter.current()
-        center.delegate = self
-
-        // Register "Record" / "Dismiss" actions for the mic-active prompt
-        let recordAction = UNNotificationAction(
-            identifier: TapeNotificationID.actionRecord,
-            title: "Record",
-            options: []
-        )
-        let dismissAction = UNNotificationAction(
-            identifier: TapeNotificationID.actionDismiss,
-            title: "Dismiss",
-            options: [.destructive]
-        )
-        let category = UNNotificationCategory(
-            identifier: TapeNotificationID.categoryMicActive,
-            actions: [recordAction, dismissAction],
-            intentIdentifiers: []
-        )
-        center.setNotificationCategories([category])
-
-        // Request permission (alerts only — no sound, no badge)
-        center.requestAuthorization(options: [.alert]) { _, _ in }
-    }
-
-    // Show notification even when app is active (mic prompt should always be visible)
-    func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification,
-        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
-    ) {
-        completionHandler([.banner])
-    }
-
-    // Handle "Record" action tap
-    func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse,
-        withCompletionHandler completionHandler: @escaping () -> Void
-    ) {
-        if response.actionIdentifier == TapeNotificationID.actionRecord {
-            Task { @MainActor in
-                self.recordingManager.startRecordingFromPrompt()
-            }
-        }
-        completionHandler()
     }
 
     // MARK: - Menu Bar Icon
@@ -216,7 +157,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         }
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 380),
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 340),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false

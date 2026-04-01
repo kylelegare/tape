@@ -12,7 +12,7 @@ struct SettingsView: View {
             VocabularySettingsTab()
                 .tabItem { Label("Vocabulary", systemImage: "text.book.closed") }
         }
-        .frame(width: 450, height: 350)
+        .frame(width: 450, height: 310)
     }
 }
 
@@ -60,9 +60,8 @@ struct GeneralSettingsTab: View {
 
 struct RecordingSettingsTab: View {
     @AppStorage("userName") private var userName = ""
-    @AppStorage("whisperModel") private var whisperModel = "base"
+    @AppStorage("whisperModel") private var whisperModel = "tiny"
     @AppStorage("minimumDuration") private var minimumDuration = 5
-    @AppStorage("graceWindowDuration") private var graceWindowDuration = 30
 
     private let modelOptions = ["tiny", "base", "small", "medium", "large-v3"]
 
@@ -78,23 +77,13 @@ struct RecordingSettingsTab: View {
                         Text(model.capitalized).tag(model)
                     }
                 }
+                .help("Models download on first use and are stored locally in Application Support.")
 
                 Stepper("Minimum recording: \(minimumDuration)s", value: $minimumDuration, in: 5...300, step: 5)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text("Grace window")
-                        Spacer()
-                        Text(graceWindowDuration == 0 ? "off" : "\(graceWindowDuration)s")
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                    Slider(value: Binding(
-                        get: { Double(graceWindowDuration) },
-                        set: { graceWindowDuration = Int($0) }
-                    ), in: 0...60, step: 5)
-                }
-                .help("Seconds to wait after meeting ends before finalizing. Set to 0 to stop immediately.")
+                Text("Models download on first transcription and stay on this Mac.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

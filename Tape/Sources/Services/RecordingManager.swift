@@ -1,14 +1,9 @@
 import AppKit
 import Foundation
-import UserNotifications
 
 /// Orchestrates the full recording lifecycle.
 ///
-/// Auto-detection flow (requires signed build):
-///   mic active → notification prompt → user taps "Record" → recording starts
-///   mic released OR meeting app closes → grace window → finalize → transcribe → .md
-///
-/// Manual flow: user taps Record button in the popover.
+/// Flow: user taps Record → recording starts → user taps Stop → transcribe → .md saved.
 @MainActor
 final class RecordingManager: ObservableObject {
     @Published var state: RecordingState = .idle
@@ -19,123 +14,23 @@ final class RecordingManager: ObservableObject {
     private var isFinalizing = false
 
     private let audioRecorder = AudioRecorder()
-    private let micWatcher = MicWatcher()
     private let transcriptionService = TranscriptionService()
     private var recordingStartTime: Date?
     private var audioFileURL: URL?
     private var durationTimer: Timer?
-    private var graceTimer: Timer?
-    private var meetingPollTimer: Timer?
     private var meetingIdentity: MeetingIdentity?
-
-    /// Meeting apps that were running when recording started — used to detect end-of-meeting.
-    private var trackedMeetingApps: Set<String> = []
-
-    /// ID of the in-flight mic-active notification, so we can dismiss it on response or mic release.
-    private var pendingNotificationID: String?
-
-    /// Known meeting apps to watch for auto-stop. Excludes browsers (always running).
-    private static let meetingAppBundleIDs: Set<String> = [
-        "us.zoom.xos",
-        "com.microsoft.teams",
-        "com.microsoft.teams2",
-        "com.cisco.webexmeetingsapp",
-        "com.apple.FaceTime",
-        "com.tinyspeck.slackmacgap",
-    ]
-
-    init() {
-        setupMicWatcher()
-    }
-
-    func start() {
-        // Mic detection (auto-prompt on mic grab) requires a signed/notarized build —
-        // macOS Sequoia privacy APIs return incorrect state for unsigned debug builds.
-        // Re-enable micWatcher.start() once distributed via Developer ID or App Store.
-        // micWatcher.start()
-    }
-
-    func stop() {
-        micWatcher.stop()
-    }
 
     // MARK: - Public recording entry points
 
-    /// Called by AppDelegate when the user taps "Record" in the mic-active notification.
-    func startRecordingFromPrompt() {
-        pendingNotificationID = nil
-        let identity = MeetingIdentity.resolve()
-        Task { await startRecording(identity: identity) }
-    }
-
-    /// Called by the manual Record button in the popover — one-off note.
+    /// Called by the manual Record button in the popover.
     func startOneOffRecording() {
-        let identity = MeetingIdentity(title: "note", source: "Manual")
+        let identity = MeetingIdentity.resolve()
         Task { await startRecording(identity: identity) }
     }
 
     /// Stop whatever is currently recording.
     func stopRecording() {
         Task { await finalizeRecording() }
-    }
-
-    // MARK: - Mic Watcher
-
-    private func setupMicWatcher() {
-        micWatcher.onMicGrabbed = { [weak self] in
-            Task { @MainActor in
-                await self?.handleMicGrabbed()
-            }
-        }
-        micWatcher.onMicReleased = { [weak self] in
-            Task { @MainActor in
-                self?.handleMicReleased()
-            }
-        }
-    }
-
-    /// Mic became active — prompt the user rather than auto-recording.
-    private func handleMicGrabbed() async {
-        guard state == .idle else { return }
-        graceTimer?.invalidate()
-        graceTimer = nil
-        sendRecordingPrompt()
-    }
-
-    /// Mic released — dismiss any pending prompt; start grace window if we're recording.
-    /// Note: this won't fire during an active recording because our own AVAudioEngine
-    /// holds the mic. Meeting-end detection is handled by meetingPollTimer instead.
-    private func handleMicReleased() {
-        if let id = pendingNotificationID {
-            UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [id])
-            pendingNotificationID = nil
-        }
-        guard state == .recording else { return }
-        startGracePeriod()
-    }
-
-    // MARK: - Notification Prompt
-
-    private func sendRecordingPrompt() {
-        let content = UNMutableNotificationContent()
-        content.title = "tape"
-
-        content.body = "mic is active — record?"
-        content.categoryIdentifier = TapeNotificationID.categoryMicActive
-        content.sound = nil
-
-        let notifID = "tape-mic-\(Int(Date().timeIntervalSince1970))"
-        pendingNotificationID = notifID
-
-        let request = UNNotificationRequest(identifier: notifID, content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(request)
-
-        // Auto-dismiss after 8 seconds if not acted on
-        DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self] in
-            guard self?.pendingNotificationID == notifID else { return }
-            UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [notifID])
-            self?.pendingNotificationID = nil
-        }
     }
 
     // MARK: - Core Recording Logic
@@ -151,59 +46,8 @@ final class RecordingManager: ObservableObject {
             recordingStartTime = Date()
             state = .recording
             startDurationTimer()
-            startMeetingPollIfNeeded()
         } catch {
             statusMessage = "recording failed: \(error.localizedDescription)"
-        }
-    }
-
-    // MARK: - Meeting End Detection
-
-    /// Snapshot which known meeting apps are running at recording start.
-    /// Polls every 10s to detect when they all close → triggers grace period.
-    /// If no meeting apps were running (pure manual note), this is a no-op.
-    private func startMeetingPollIfNeeded() {
-        let running = NSWorkspace.shared.runningApplications
-            .compactMap { $0.bundleIdentifier }
-            .filter { Self.meetingAppBundleIDs.contains($0) }
-
-        trackedMeetingApps = Set(running)
-        guard !trackedMeetingApps.isEmpty else { return } // manual note — no poll needed
-
-        meetingPollTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self, self.state == .recording else {
-                    self?.meetingPollTimer?.invalidate()
-                    return
-                }
-                let stillRunning = NSWorkspace.shared.runningApplications
-                    .compactMap { $0.bundleIdentifier }
-                    .filter { self.trackedMeetingApps.contains($0) }
-
-                if stillRunning.isEmpty {
-                    self.meetingPollTimer?.invalidate()
-                    self.meetingPollTimer = nil
-                    self.startGracePeriod()
-                }
-            }
-        }
-    }
-
-    private func startGracePeriod() {
-        guard graceTimer == nil else { return } // already counting down
-        let graceSeconds = UserDefaults.standard.integer(forKey: "graceWindowDuration")
-        // 0 = "off" in Settings → stop immediately; default registered at launch is 30
-
-        if graceSeconds == 0 {
-            Task { await finalizeRecording() }
-            return
-        }
-
-        statusMessage = "finishing in \(graceSeconds)s…"
-        graceTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(graceSeconds), repeats: false) { [weak self] _ in
-            Task { @MainActor in
-                await self?.finalizeRecording()
-            }
         }
     }
 
@@ -212,10 +56,6 @@ final class RecordingManager: ObservableObject {
         isFinalizing = true
         defer { isFinalizing = false }
 
-        graceTimer?.invalidate()
-        graceTimer = nil
-        meetingPollTimer?.invalidate()
-        meetingPollTimer = nil
         stopDurationTimer()
 
         let duration = recordingDuration
@@ -226,6 +66,9 @@ final class RecordingManager: ObservableObject {
         await audioRecorder.stopRecording()
 
         if duration < minSeconds {
+            if let audioURL = audioFileURL {
+                try? FileManager.default.removeItem(at: audioURL)
+            }
             statusMessage = "recording discarded (< \(Int(minSeconds))s)"
             cleanup()
             return
@@ -246,7 +89,7 @@ final class RecordingManager: ObservableObject {
         }
 
         let userName = UserDefaults.standard.string(forKey: "userName") ?? ""
-        let whisperModel = UserDefaults.standard.string(forKey: "whisperModel") ?? "base"
+        let whisperModel = UserDefaults.standard.string(forKey: "whisperModel") ?? "tiny"
 
         do {
             if ModelManager.shared.modelPath(for: whisperModel) == nil {
@@ -381,6 +224,5 @@ final class RecordingManager: ObservableObject {
         audioFileURL = nil
         meetingIdentity = nil
         currentMeetingTitle = nil
-        trackedMeetingApps = []
     }
 }
