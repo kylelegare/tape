@@ -81,7 +81,8 @@ final class MeetingStore: ObservableObject {
         guard let content = try? String(contentsOf: url, encoding: .utf8) else { return nil }
 
         let frontmatter = parseFrontmatter(content)
-        guard let title = frontmatter["title"] else { return nil }
+        guard let rawTitle = frontmatter["title"] else { return nil }
+        let title = decodeFrontmatterString(rawTitle)
 
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
@@ -144,7 +145,7 @@ final class MeetingStore: ObservableObject {
             .components(separatedBy: "\n")
             .map { line -> String in
                 let trimmed = line.trimmingCharacters(in: .whitespaces)
-                return trimmed.hasPrefix("title:") ? "title: \(newTitle)" : line
+                return trimmed.hasPrefix("title:") ? "title: \(encodeFrontmatterString(newTitle))" : line
             }
             .joined(separator: "\n")
 
@@ -206,5 +207,19 @@ final class MeetingStore: ObservableObject {
             return String(beforeContext) + "\n" + newContext + "\n\n" + String(afterContext[transcriptStart.lowerBound...])
         }
         return String(beforeContext) + "\n" + newContext + "\n"
+    }
+
+    private func decodeFrontmatterString(_ value: String) -> String {
+        guard value.hasPrefix("\""), value.hasSuffix("\""), value.count >= 2 else {
+            return value
+        }
+        return String(value.dropFirst().dropLast())
+    }
+
+    private func encodeFrontmatterString(_ value: String) -> String {
+        if value.contains(":") {
+            return "\"\(value.replacingOccurrences(of: "\"", with: "'"))\""
+        }
+        return value
     }
 }

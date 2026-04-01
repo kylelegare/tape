@@ -12,6 +12,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var stateCancellable: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        guard !isRunningTests else { return }
+
         UserDefaults.standard.register(defaults: [
             "minimumDuration": 5,
             "whisperModel": "tiny"
@@ -36,7 +38,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        guard !isRunningTests else { return }
         meetingStore.stopWatching()
+    }
+
+    private var isRunningTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
     // MARK: - Menu Bar Icon

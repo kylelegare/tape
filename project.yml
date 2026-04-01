@@ -44,3 +44,14 @@ targets:
       properties:
         com.apple.security.app-sandbox: false
         com.apple.security.device.audio-input: true
+
+  TapeTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: TapeTests
+    dependencies:
+      - target: Tape
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES

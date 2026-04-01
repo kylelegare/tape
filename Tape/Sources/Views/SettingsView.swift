@@ -20,7 +20,7 @@ struct SettingsView: View {
 
 struct GeneralSettingsTab: View {
     @AppStorage("outputFolderPath") private var outputFolderPath: String = tapeOutputFolder()
-    @AppStorage("launchAtLogin") private var launchAtLogin = false
+    @StateObject private var launchManager = LaunchAtLoginManager.shared
 
     var body: some View {
         Form {
@@ -35,11 +35,23 @@ struct GeneralSettingsTab: View {
             }
 
             Section("Startup") {
-                Toggle("Launch at login", isOn: $launchAtLogin)
+                Toggle("Launch at login", isOn: Binding(
+                    get: { launchManager.isEnabled },
+                    set: { launchManager.setEnabled($0) }
+                ))
+
+                if let statusMessage = launchManager.statusMessage {
+                    Text(statusMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .formStyle(.grouped)
         .padding()
+        .onAppear {
+            launchManager.refresh()
+        }
     }
 
     private func chooseOutputFolder() {
