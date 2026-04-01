@@ -2,7 +2,8 @@ import AppKit
 import Combine
 import SwiftUI
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private var popoverWindow: NSWindow?
     private var eventMonitor: Any?
@@ -10,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var meetingStore: MeetingStore!
     private var settingsWindow: NSWindow?
     private var stateCancellable: AnyCancellable?
+    private var transientStatusMenu: NSMenu?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard !isRunningTests else { return }
@@ -83,8 +85,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         if let button = statusItem.button {
             button.image = cassetteIcon()
-            button.action = #selector(togglePopover)
+            button.action = #selector(handleStatusItemClick)
             button.target = self
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        }
+    }
+
+    @objc private func handleStatusItemClick() {
+        guard let event = NSApp.currentEvent else {
+            togglePopover()
+            return
+        }
+
+        let isSecondaryClick = event.type == .rightMouseUp
+            || (event.type == .leftMouseUp && event.modifierFlags.contains(.control))
+
+        if isSecondaryClick {
+            showStatusMenu()
+        } else {
+            togglePopover()
         }
     }
 
@@ -153,6 +172,78 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let monitor = eventMonitor {
             NSEvent.removeMonitor(monitor)
             eventMonitor = nil
+        }
+    }
+
+    private func showStatusMenu() {
+        closePopover()
+
+        let menu = NSMenu()
+        menu.addItem(NSMenuItem(title: "Open Tape", action: #selector(showTapeFromMenu), keyEquivalent: ""))
+
+        let recordingItemTitle: String
+        let recordingItemEnabled: Bool
+
+        switch recordingManager.state {
+        case .idle:
+            recordingItemTitle = "Start Recording"
+            recordingItemEnabled = true
+        case .recording:
+            recordingItemTitle = "Stop Recording"
+            recordingItemEnabled = true
+        case .transcribing:
+            recordingItemTitle = "Transcribing…"
+            recordingItemEnabled = false
+        }
+
+        let recordingItem = NSMenuItem(title: recordingItemTitle, action: #selector(toggleRecordingFromMenu), keyEquivalent: "")
+        recordingItem.isEnabled = recordingItemEnabled
+        menu.addItem(recordingItem)
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Open Recordings Folder", action: #selector(openRecordingsFolder), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Settings", action: #selector(openSettings), keyEquivalent: ","))
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Quit Tape", action: #selector(quitApp), keyEquivalent: "q"))
+
+        for item in menu.items {
+            item.target = self
+        }
+
+        menu.delegate = self
+        transientStatusMenu = menu
+        statusItem.menu = menu
+        statusItem.button?.performClick(nil)
+    }
+
+    @objc private func showTapeFromMenu() {
+        if popoverWindow == nil {
+            showPopover()
+        }
+    }
+
+    @objc private func toggleRecordingFromMenu() {
+        switch recordingManager.state {
+        case .idle:
+            recordingManager.startOneOffRecording()
+        case .recording:
+            recordingManager.stopRecording()
+        case .transcribing:
+            break
+        }
+    }
+
+    @objc private func openRecordingsFolder() {
+        NSWorkspace.shared.open(URL(fileURLWithPath: resolvedOutputFolder()))
+    }
+
+    @objc private func quitApp() {
+        NSApp.terminate(nil)
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        if transientStatusMenu === menu {
+            statusItem.menu = nil
+            transientStatusMenu = nil
         }
     }
 
