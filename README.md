@@ -16,29 +16,30 @@
 
 ---
 
-## Why tape
+## Why this exists
 
-Most meeting tools optimize for cloud sync, sharing, and dashboards. **tape** optimizes for a simpler loop:
+Meeting transcription tools have gotten expensive and bloated. They start simple — record, transcribe — but SaaS needs to grow, so they bolt on team features, dashboards, AI summaries, coaching tools, and integrations you never asked for. The price goes up. The complexity goes up. And at the end of the day, all you actually needed was the transcript.
+
+That's it. A transcript is just data. Your agents, your LLMs, your own notes workflow — those do the real work. You don't need a platform sitting between you and a text file.
+
+**tape** is the dumb, cheap alternative. It records, transcribes locally with Whisper, and drops a Markdown file on your machine. No account, no subscription, no cloud.
 
 1. Click **Record**
 2. Talk
 3. Click **Stop**
-4. Get a local `.md` file any agent or editor can read
+4. Get a `.md` file
 
-No cloud account. No browser tab. No weird export step.
+## What it does
 
-## Features
-
-- Lives in the **macOS menu bar** — always one click away
-- Records from your microphone with a simple start/stop flow
-- **Transcribes locally** with Whisper — nothing leaves your machine
+- Lives in the **macOS menu bar** — one click to start
+- Records from your mic, transcribes locally with Whisper
 - Saves each recording as a **Markdown file** with YAML frontmatter
-- Rename recordings inline and inspect them in a detail panel
-- Output is easy for humans and agents to parse
+- Nothing leaves your machine — no cloud, no telemetry
+- Output is just text — easy to grep, sync, or hand to an agent
 
 ## Example output
 
-Each recording becomes a file you own — easy to grep, sync, or hand to an agent.
+Every recording becomes a file you own.
 
 ```markdown
 ---
@@ -107,14 +108,9 @@ Models download on first use to `~/Library/Application Support/tape/models/`.
 | medium | ~1.5 GB | High accuracy |
 | large-v3 | ~3.1 GB | Highest accuracy, slowest |
 
-## Design philosophy
+## Intentionally simple
 
-**tape** is intentionally narrow:
-
-- Manual recording only — no always-on listening
-- Local-first transcription — nothing leaves your machine
-- One file per recording — no databases or lock-in
-- Minimal background behavior — light, predictable, durable
+**tape** won't grow into a platform. There's no roadmap toward team plans, analytics, or AI meeting assistants. It records, it transcribes, it saves a file. That's the whole thing.
 
 ## License
 
