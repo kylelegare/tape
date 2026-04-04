@@ -1,54 +1,44 @@
-# tape
+<p align="center">
+  <img src="docs/tape-hero.png" alt="tape — Lightweight Meeting Recorder" width="500">
+</p>
 
-```text
-  ______________________________
- |  ________________  ________  |
- | |                ||        | |
- | |   local-first  ||  .md   | |
- | |    meeting     || files  | |
- | |    recorder    ||        | |
- | |________________||________| |
- |  ___      _________      ___ |
- | / _ \    / ======= \    / _ \|
- || |_| |  |  tape.app |  | |_| ||
- ||_____|   \_________/   |_____||
- |______________________________|
-```
+<p align="center">
+  <strong>Local-first meeting recorder for macOS</strong><br>
+  Record, transcribe, and save meetings as plain Markdown files.
+</p>
 
-Lightweight macOS menu bar recorder for people who want transcripts as plain Markdown files, not trapped in another web app.
+<p align="center">
+  <img src="https://img.shields.io/badge/platform-macOS_15+-blue?logo=apple&logoColor=white" alt="macOS 15+">
+  <img src="https://img.shields.io/badge/swift-5.9+-F05138?logo=swift&logoColor=white" alt="Swift">
+  <img src="https://img.shields.io/badge/whisper-local_transcription-green" alt="Whisper">
+  <img src="https://img.shields.io/github/license/kylelegare/tape" alt="License">
+</p>
+
+---
 
 ## Why tape
 
-Most meeting tools optimize for sync, sharing, and dashboards.
+Most meeting tools optimize for cloud sync, sharing, and dashboards. **tape** optimizes for a simpler loop:
 
-`tape` optimizes for a different loop:
-
-- click `Record`
-- talk
-- click `Stop`
-- get a local `.md` file an agent can read
+1. Click **Record**
+2. Talk
+3. Click **Stop**
+4. Get a local `.md` file any agent or editor can read
 
 No cloud account. No browser tab. No weird export step.
 
-## What it does
+## Features
 
-- Lives in the macOS menu bar
-- Records from your microphone with a simple manual start/stop flow
-- Transcribes locally with Whisper
-- Saves each recording as a Markdown file with YAML frontmatter
-- Lets you rename recordings inline and inspect them in a detail panel
-- Keeps the output easy for humans and agents to parse
+- Lives in the **macOS menu bar** — always one click away
+- Records from your microphone with a simple start/stop flow
+- **Transcribes locally** with Whisper — nothing leaves your machine
+- Saves each recording as a **Markdown file** with YAML frontmatter
+- Rename recordings inline and inspect them in a detail panel
+- Output is easy for humans and agents to parse
 
-## Why Markdown
+## Example output
 
-Every recording becomes a file you actually own.
-
-- easy to grep
-- easy to sync with git, iCloud, Dropbox, or Obsidian
-- easy to hand to coding agents and local tools
-- easy to edit after the meeting
-
-Example output:
+Each recording becomes a file you own — easy to grep, sync, or hand to an agent.
 
 ```markdown
 ---
@@ -73,23 +63,14 @@ partial: false
 [00:00] Kyle: ...
 ```
 
-## Product shape
+## Getting started
 
-`tape` is intentionally narrow:
-
-- manual recording only
-- local-first transcription
-- one file per recording
-- minimal background behavior
-
-That constraint is the point. The app should feel light, predictable, and durable.
-
-## Requirements
+### Requirements
 
 - macOS 15+
 - Xcode 16+
 
-## Build From Source
+### Build from source
 
 ```bash
 open Tape.xcodeproj
@@ -97,44 +78,26 @@ open Tape.xcodeproj
 
 Run the `Tape` scheme. The app appears in the menu bar as a cassette icon.
 
-For a clean installed app:
+For a release build:
 
 ```bash
 xcodebuild -project Tape.xcodeproj -scheme Tape -configuration Release build
 ```
-
-The built app bundle will be in Xcode DerivedData or the custom derived-data path you choose.
-
-## Recording Files
-
-By default, recordings are written to `~/Documents/tape/`.
-
-Filename format:
-
-```text
-YYYY-MM-DD-HH-mm-title.md
-```
-
-The `Context` section is left blank on purpose so you can add notes, decisions, and follow-ups after the call.
 
 ## Settings
 
 | Setting | Default | Description |
 |---|---|---|
 | Output folder | `~/Documents/tape/` | Where `.md` files are saved |
-| Launch at login | Off | Starts the menu bar app when you log in |
-| Your name | — | Used to label your speaker name in transcripts |
+| Launch at login | Off | Start tape when you log in |
+| Your name | — | Labels your speaker name in transcripts |
 | Whisper model | `tiny` | Downloads on first use |
-| Minimum recording | `5s` | Short recordings are discarded |
-| Custom vocabulary | — | Biases transcription toward names and project terms |
+| Min recording | `5s` | Short recordings are discarded |
+| Custom vocabulary | — | Bias transcription toward names and terms |
 
-## Whisper Models
+## Whisper models
 
-Models are downloaded on first use to:
-
-```text
-~/Library/Application Support/tape/models/
-```
+Models download on first use to `~/Library/Application Support/tape/models/`.
 
 | Model | Size | Notes |
 |---|---|---|
@@ -144,15 +107,14 @@ Models are downloaded on first use to:
 | medium | ~1.5 GB | High accuracy |
 | large-v3 | ~3.1 GB | Highest accuracy, slowest |
 
-## Current State
+## Design philosophy
 
-This is a focused macOS utility, not a giant platform.
+**tape** is intentionally narrow:
 
-That means:
-
-- the app is intentionally small
-- the core loop matters more than feature count
-- the GitHub repo should read like a sharp tool, not a startup pitch deck
+- Manual recording only — no always-on listening
+- Local-first transcription — nothing leaves your machine
+- One file per recording — no databases or lock-in
+- Minimal background behavior — light, predictable, durable
 
 ## License
 
