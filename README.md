@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/tape-hero.png" alt="tape — Lightweight Meeting Recorder" width="500">
+  <img src="assets/tape-hero.png" alt="tape — Lightweight Meeting Recorder" width="500">
 </p>
 
 <p align="center">
