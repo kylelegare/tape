@@ -18,11 +18,9 @@
 
 ## Why this exists
 
-Meeting transcription tools have gotten expensive and bloated. They start simple — record, transcribe — but SaaS needs to grow, so they bolt on team features, dashboards, AI summaries, coaching tools, and integrations you never asked for. The price goes up. The complexity goes up. And at the end of the day, all you actually needed was the transcript.
-
-That's it. A transcript is just data. Your agents, your LLMs, your own notes workflow — those do the real work. You don't need a platform sitting between you and a text file.
-
-**tape** is the dumb, cheap alternative. It records, transcribes locally with Whisper, and drops a Markdown file on your machine. No account, no subscription, no cloud.
+Most transcription tools do a lot. Dashboards, coaching tools, integrations, cloud sync... and then the subscription fee to hold it all together.
+tape doesn't do most of that. It records your meeting, transcribes it locally with Whisper, and saves a Markdown file to your machine. That's the whole thing.
+The idea is that you've already got LLMs, agents, and a notes workflow you like. tape just gets the transcript out of the way so those tools can do their thing. No account, no subscription, no cloud everything stays on your machine.
 
 1. Click **Record**
 2. Talk
