@@ -25,6 +25,7 @@
 		CBABA56AD590E5C676F4C82E /* MeetingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1389663D4D378B48826692 /* MeetingStore.swift */; };
 		CD2986D6336BFDE5C3482FC0 /* TapeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4A7332F97C7722EDDED1BB0 /* TapeApp.swift */; };
 		F900097B1A73E9B82EC29D95 /* SwiftWhisper in Frameworks */ = {isa = PBXBuildFile; productRef = DDC195BCC6B29FC8EDB8AF45 /* SwiftWhisper */; };
+		A1B2C3D4E5F6A7B8C9D0E1F3 /* SoundAnalysis.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F2 /* SoundAnalysis.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,6 +58,7 @@
 		D4A7332F97C7722EDDED1BB0 /* TapeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapeApp.swift; sourceTree = "<group>"; };
 		F7682F2217FB973513E2A63C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		FB61070D9E8322E7E949224F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* SoundAnalysis.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SoundAnalysis.framework; path = System/Library/Frameworks/SoundAnalysis.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,6 +67,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F900097B1A73E9B82EC29D95 /* SwiftWhisper in Frameworks */,
+				A1B2C3D4E5F6A7B8C9D0E1F3 /* SoundAnalysis.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
