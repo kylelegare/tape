@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import SoundAnalysis
 import SwiftWhisper
 
 /// Transcribes audio files using whisper.cpp via SwiftWhisper.
@@ -88,6 +89,36 @@ final class TranscriptionService {
         return result
     }
 
+    // MARK: - VAD Filtering
+
+    /// Drop transcript segments that fall in non-speech regions to prevent Whisper hallucinations.
+    func filterHallucinations(segments: [TranscriptSegment], audioURL: URL) async throws -> [TranscriptSegment] {
+        let speechRanges = try await detectSpeechRanges(in: audioURL)
+        // If detection returned nothing, keep all segments rather than dropping everything
+        guard !speechRanges.isEmpty else { return segments }
+        return segments.filter { seg in
+            speechRanges.contains { range in
+                let segStart = Double(seg.startMs) / 1000.0
+                let segEnd = Double(seg.endMs) / 1000.0
+                return segStart < range.end && segEnd > range.start
+            }
+        }
+    }
+
+    private func detectSpeechRanges(in audioURL: URL) async throws -> [(start: Double, end: Double)] {
+        let analyzer = try SNAudioFileAnalyzer(url: audioURL)
+        let request = try SNClassifySoundRequest(classifierIdentifier: .version1)
+        request.windowDuration = CMTime(seconds: 1.0, preferredTimescale: 1)
+        request.overlapFactor = 0.5
+
+        let delegate = SpeechDetectionDelegate()
+        try analyzer.add(request, withObserver: delegate)
+        analyzer.analyze()
+        await delegate.waitUntilComplete()
+
+        return delegate.speechRanges
+    }
+
     // MARK: - Audio Loading
 
     /// Load audio file and convert to 16kHz mono Float32 samples
@@ -146,6 +177,46 @@ final class TranscriptionService {
         }
 
         return Array(UnsafeBufferPointer(start: floatData[0], count: Int(outputBuffer.frameLength)))
+    }
+}
+
+// MARK: - SoundAnalysis Delegate
+
+private final class SpeechDetectionDelegate: NSObject, SNResultsObserving, @unchecked Sendable {
+    private(set) var speechRanges: [(start: Double, end: Double)] = []
+    private let continuation: AsyncStream<Void>.Continuation
+    private let stream: AsyncStream<Void>
+
+    override init() {
+        var cont: AsyncStream<Void>.Continuation!
+        stream = AsyncStream { cont = $0 }
+        continuation = cont
+        super.init()
+    }
+
+    func request(_ request: SNRequest, didProduce result: SNResult) {
+        guard let classification = result as? SNClassificationResult else { return }
+        let timeRange = classification.timeRange
+        let isSpeech = classification.classifications.contains {
+            $0.identifier == "speech" && $0.confidence > 0.5
+        }
+        if isSpeech {
+            let start = timeRange.start.seconds
+            let end = (timeRange.start + timeRange.duration).seconds
+            speechRanges.append((start: start, end: end))
+        }
+    }
+
+    func request(_ request: SNRequest, didFailWithError error: Error) {
+        continuation.finish()
+    }
+
+    func requestDidComplete(_ request: SNRequest) {
+        continuation.finish()
+    }
+
+    func waitUntilComplete() async {
+        for await _ in stream {}
     }
 }
 

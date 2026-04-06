@@ -100,11 +100,19 @@ final class RecordingManager: ObservableObject {
             let modelPath = try await ModelManager.shared.ensureModel(whisperModel)
             statusMessage = "transcribing — \(identity.title)"
 
-            let result = try await transcriptionService.transcribe(
+            var result = try await transcriptionService.transcribe(
                 audioURL: audioURL,
                 modelPath: modelPath,
                 vocabulary: vocabulary,
                 speakerName: userName
+            )
+
+            // Filter out hallucinated segments that fall in non-speech regions
+            let filtered = try await transcriptionService.filterHallucinations(
+                segments: result.segments, audioURL: audioURL
+            )
+            result = TranscriptionService.TranscriptResult(
+                segments: filtered, speakerName: result.speakerName
             )
 
             var transcript = transcriptionService.formatTranscript(result: result)
