@@ -77,7 +77,7 @@ Tape will ask for mic permission the first time you record, and download a small
 
 ### For developers
 
-If you want to poke around or run it from source, you'll need Xcode (Apple's free development tool) and macOS 15+.
+You'll need Xcode and macOS 15+.
 
 ```bash
 git clone https://github.com/kylelegare/tape
