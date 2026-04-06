@@ -65,27 +65,26 @@ partial: false
 
 ## Getting started
 
-### Just want the app?
+### Download the app
 
-1. Go to [Releases](https://github.com/kylelegare/tape/releases) and download `Tape.zip`
-2. Unzip it, drag `Tape.app` to your `/Applications` folder
-3. Right-click → Open the first time (macOS will ask if you trust it — say yes)
-4. Tape appears in your menu bar as a cassette icon
+Go to [Releases](https://github.com/kylelegare/tape/releases), download `Tape.zip`, unzip it, and drag `Tape.app` to your Applications folder.
 
-That's it. No installer, no setup.
+First launch: right-click → Open. macOS will ask if you trust it since it's not from the App Store — just say yes. After that it opens normally.
 
-> First time you use it, it'll ask for mic permission and download a Whisper model (~75 MB for the default). Both happen once.
+Tape will ask for mic permission the first time you record, and download a small Whisper model (~75 MB) the first time you transcribe. Both happen once.
 
-### Want to build from source?
+---
 
-You'll need macOS 15+ and Xcode 16+.
+### For developers
+
+If you want to poke around or run it from source, you'll need Xcode (Apple's free development tool) and macOS 15+.
 
 ```bash
 git clone https://github.com/kylelegare/tape
 open tape/Tape.xcodeproj
 ```
 
-Hit Run in Xcode and it'll appear in the menu bar.
+Press the Play button in Xcode and it'll build and run on your machine.
 
 ## Settings
 
