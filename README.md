@@ -31,6 +31,7 @@ The idea is that you've already got LLMs, agents, and a notes workflow you like.
 
 - Lives in the **macOS menu bar** — one click to start
 - Records from your mic, transcribes locally with Whisper
+- Filters out hallucinated filler text that Whisper generates in silent gaps
 - Saves each recording as a **Markdown file** with YAML frontmatter
 - Nothing leaves your machine — no cloud, no telemetry
 - Output is just text — easy to grep, sync, or hand to an agent
@@ -64,24 +65,27 @@ partial: false
 
 ## Getting started
 
-### Requirements
+### Just want the app?
 
-- macOS 15+
-- Xcode 16+
+1. Go to [Releases](https://github.com/kylelegare/tape/releases) and download `Tape.zip`
+2. Unzip it, drag `Tape.app` to your `/Applications` folder
+3. Right-click → Open the first time (macOS will ask if you trust it — say yes)
+4. Tape appears in your menu bar as a cassette icon
 
-### Build from source
+That's it. No installer, no setup.
+
+> First time you use it, it'll ask for mic permission and download a Whisper model (~75 MB for the default). Both happen once.
+
+### Want to build from source?
+
+You'll need macOS 15+ and Xcode 16+.
 
 ```bash
-open Tape.xcodeproj
+git clone https://github.com/kylelegare/tape
+open tape/Tape.xcodeproj
 ```
 
-Run the `Tape` scheme. The app appears in the menu bar as a cassette icon.
-
-For a release build:
-
-```bash
-xcodebuild -project Tape.xcodeproj -scheme Tape -configuration Release build
-```
+Hit Run in Xcode and it'll appear in the menu bar.
 
 ## Settings
 
