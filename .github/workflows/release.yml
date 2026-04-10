@@ -60,12 +60,13 @@ jobs:
         run: |
           APP_PATH=$(find build -name "Tape.app" -type d | head -1)
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" Tape-unsigned.zip
+          # Submit and wait up to 30 minutes
           xcrun notarytool submit Tape-unsigned.zip \
             --apple-id "$NOTARIZATION_APPLE_ID" \
             --password "$NOTARIZATION_PASSWORD" \
             --team-id "$NOTARIZATION_TEAM_ID" \
-            --wait --timeout 15m 2>&1 | tee notarize-output.txt
-          # If notarization failed, fetch the log before exiting
+            --wait --timeout 30m 2>&1 | tee notarize-output.txt
+          # Check result
           if grep -q "Invalid" notarize-output.txt; then
             SUBMISSION_ID=$(grep "id:" notarize-output.txt | head -1 | awk '{print $2}')
             xcrun notarytool log "$SUBMISSION_ID" \
@@ -74,7 +75,12 @@ jobs:
               --team-id "$NOTARIZATION_TEAM_ID" || true
             exit 1
           fi
-          xcrun stapler staple "$APP_PATH"
+          if grep -q "Accepted" notarize-output.txt; then
+            xcrun stapler staple "$APP_PATH"
+          else
+            echo "Notarization did not complete — check Apple's status"
+            exit 1
+          fi
 
       - name: Package
         run: |
