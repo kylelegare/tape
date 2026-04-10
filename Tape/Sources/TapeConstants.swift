@@ -1,5 +1,13 @@
 import Foundation
 
+// MARK: - Notification identifiers
+
+enum TapeNotificationID {
+    static let categoryMicActive = "TAPE_MIC_ACTIVE"
+    static let actionRecord = "TAPE_RECORD"
+    static let actionDismiss = "TAPE_DISMISS"
+}
+
 // MARK: - Output folder helpers
 
 /// Returns the default tape output folder path (~/Documents/Tape), creating it if needed.

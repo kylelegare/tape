@@ -1,9 +1,10 @@
 import AppKit
 import Combine
 import SwiftUI
+import UserNotifications
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotificationCenterDelegate {
     private var statusItem: NSStatusItem!
     private var popoverWindow: NSWindow?
     private var eventMonitor: Any?
@@ -25,7 +26,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         meetingStore = MeetingStore()
 
         setupMenuBar()
+        setupNotifications()
         meetingStore.startWatching()
+        recordingManager.start()
 
         stateCancellable = recordingManager.$state.receive(on: DispatchQueue.main).sink { [weak self] state in
             self?.updateStatusIcon(for: state)
@@ -41,7 +44,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         guard !isRunningTests else { return }
+        recordingManager.stop()
         meetingStore.stopWatching()
+    }
+
+    // MARK: - Notifications
+
+    private func setupNotifications() {
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+
+        let recordAction = UNNotificationAction(
+            identifier: TapeNotificationID.actionRecord,
+            title: "Record",
+            options: []
+        )
+        let dismissAction = UNNotificationAction(
+            identifier: TapeNotificationID.actionDismiss,
+            title: "Dismiss",
+            options: [.destructive]
+        )
+        let category = UNNotificationCategory(
+            identifier: TapeNotificationID.categoryMicActive,
+            actions: [recordAction, dismissAction],
+            intentIdentifiers: []
+        )
+        center.setNotificationCategories([category])
+        center.requestAuthorization(options: [.alert]) { _, _ in }
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner])
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        if response.actionIdentifier == TapeNotificationID.actionRecord {
+            Task { @MainActor in
+                self.recordingManager.startRecordingFromPrompt()
+            }
+        }
+        completionHandler()
     }
 
     private var isRunningTests: Bool {

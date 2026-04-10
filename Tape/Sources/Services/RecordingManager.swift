@@ -1,9 +1,14 @@
 import AppKit
 import Foundation
+import UserNotifications
 
 /// Orchestrates the full recording lifecycle.
 ///
-/// Flow: user taps Record → recording starts → user taps Stop → transcribe → .md saved.
+/// Auto-detection flow (signed build):
+///   mic grabbed → notification prompt → user taps "Record" → recording starts
+///   mic released → grace window → finalize → transcribe → .md saved
+///
+/// Manual flow: user taps Record button in the popover.
 @MainActor
 final class RecordingManager: ObservableObject {
     @Published var state: RecordingState = .idle
@@ -15,10 +20,63 @@ final class RecordingManager: ObservableObject {
 
     private let audioRecorder = AudioRecorder()
     private let transcriptionService = TranscriptionService()
+    private let micWatcher = MicWatcher()
     private var recordingStartTime: Date?
     private var audioFileURL: URL?
     private var durationTimer: Timer?
     private var meetingIdentity: MeetingIdentity?
+    private var graceWindowTask: Task<Void, Never>?
+
+    // MARK: - Lifecycle
+
+    func start() {
+        micWatcher.onMicGrabbed = { [weak self] in
+            Task { @MainActor in self?.handleMicGrabbed() }
+        }
+        micWatcher.onMicReleased = { [weak self] in
+            Task { @MainActor in self?.handleMicReleased() }
+        }
+        micWatcher.start()
+    }
+
+    func stop() {
+        micWatcher.stop()
+        graceWindowTask?.cancel()
+        graceWindowTask = nil
+    }
+
+    // MARK: - Mic detection handlers
+
+    private func handleMicGrabbed() {
+        graceWindowTask?.cancel()
+        graceWindowTask = nil
+        guard state == .idle else { return }
+        sendRecordPrompt()
+    }
+
+    private func handleMicReleased() {
+        guard state == .recording else { return }
+        let grace = UserDefaults.standard.integer(forKey: "graceWindowDuration")
+        let graceDuration = grace > 0 ? TimeInterval(grace) : 30
+        graceWindowTask = Task {
+            try? await Task.sleep(for: .seconds(graceDuration))
+            guard !Task.isCancelled else { return }
+            await self.finalizeRecording()
+        }
+    }
+
+    private func sendRecordPrompt() {
+        let content = UNMutableNotificationContent()
+        content.title = "Meeting started"
+        content.body = "Tap Record to capture this meeting"
+        content.categoryIdentifier = TapeNotificationID.categoryMicActive
+        let request = UNNotificationRequest(
+            identifier: TapeNotificationID.categoryMicActive,
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
+    }
 
     // MARK: - Public recording entry points
 
@@ -28,8 +86,16 @@ final class RecordingManager: ObservableObject {
         Task { await startRecording(identity: identity) }
     }
 
+    /// Called when the user taps "Record" on the mic-active notification.
+    func startRecordingFromPrompt() {
+        let identity = MeetingIdentity.resolve()
+        Task { await startRecording(identity: identity) }
+    }
+
     /// Stop whatever is currently recording.
     func stopRecording() {
+        graceWindowTask?.cancel()
+        graceWindowTask = nil
         Task { await finalizeRecording() }
     }
 
