@@ -44,10 +44,13 @@ jobs:
       - name: Strip debug entitlement and re-sign
         run: |
           APP_PATH=$(find build -name "Tape.app" -type d | head -1)
-          # Extract current entitlements, remove get-task-allow, re-sign
-          codesign -d --entitlements - "$APP_PATH" --xml > entitlements.plist 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Delete :com.apple.security.get-task-allow" entitlements.plist 2>/dev/null || true
-          codesign --force --sign "Developer ID Application" --entitlements entitlements.plist --timestamp -o runtime "$APP_PATH"
+          # Use the project entitlements file directly (no get-task-allow in it)
+          codesign --force --deep --sign "Developer ID Application" \
+            --entitlements Tape/Resources/Tape.entitlements \
+            --timestamp -o runtime \
+            "$APP_PATH"
+          # Verify
+          codesign -d --entitlements - "$APP_PATH" 2>&1 | grep -c "get-task-allow" && { echo "ERROR: get-task-allow still present"; exit 1; } || echo "✓ No get-task-allow"
 
       - name: Notarize
         env:
@@ -61,7 +64,7 @@ jobs:
             --apple-id "$NOTARIZATION_APPLE_ID" \
             --password "$NOTARIZATION_PASSWORD" \
             --team-id "$NOTARIZATION_TEAM_ID" \
-            --wait 2>&1 | tee notarize-output.txt
+            --wait --timeout 15m 2>&1 | tee notarize-output.txt
           # If notarization failed, fetch the log before exiting
           if grep -q "Invalid" notarize-output.txt; then
             SUBMISSION_ID=$(grep "id:" notarize-output.txt | head -1 | awk '{print $2}')
