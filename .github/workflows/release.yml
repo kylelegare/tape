@@ -41,6 +41,14 @@ jobs:
             OTHER_CODE_SIGN_FLAGS="--timestamp" \
             build
 
+      - name: Strip debug entitlement and re-sign
+        run: |
+          APP_PATH=$(find build -name "Tape.app" -type d | head -1)
+          # Extract current entitlements, remove get-task-allow, re-sign
+          codesign -d --entitlements - "$APP_PATH" --xml > entitlements.plist 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Delete :com.apple.security.get-task-allow" entitlements.plist 2>/dev/null || true
+          codesign --force --sign "Developer ID Application" --entitlements entitlements.plist --timestamp -o runtime "$APP_PATH"
+
       - name: Notarize
         env:
           NOTARIZATION_APPLE_ID: ${{ secrets.NOTARIZATION_APPLE_ID }}
