@@ -44,13 +44,18 @@ jobs:
       - name: Strip debug entitlement and re-sign
         run: |
           APP_PATH=$(find build -name "Tape.app" -type d | head -1)
-          # Use the project entitlements file directly (no get-task-allow in it)
+
+          # Re-sign using the project entitlements file directly —
+          # it never contains get-task-allow so no stripping needed.
           codesign --force --deep --sign "Developer ID Application" \
             --entitlements Tape/Resources/Tape.entitlements \
-            --timestamp -o runtime \
+            --timestamp --options runtime \
             "$APP_PATH"
-          # Verify
-          codesign -d --entitlements - "$APP_PATH" 2>&1 | grep -c "get-task-allow" && { echo "ERROR: get-task-allow still present"; exit 1; } || echo "✓ No get-task-allow"
+
+          # Verify get-task-allow is gone
+          codesign -d --entitlements - "$APP_PATH" 2>&1 | grep -c "get-task-allow" \
+            && { echo "ERROR: get-task-allow still present"; exit 1; } \
+            || echo "✓ No get-task-allow entitlement"
 
       - name: Notarize
         env:
@@ -59,26 +64,29 @@ jobs:
           NOTARIZATION_TEAM_ID: ${{ secrets.NOTARIZATION_TEAM_ID }}
         run: |
           APP_PATH=$(find build -name "Tape.app" -type d | head -1)
-          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" Tape-unsigned.zip
-          # Submit and wait up to 30 minutes
-          xcrun notarytool submit Tape-unsigned.zip \
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" Tape-to-notarize.zip
+
+          # Submit and wait up to 30 minutes, tee output for inspection
+          xcrun notarytool submit Tape-to-notarize.zip \
             --apple-id "$NOTARIZATION_APPLE_ID" \
             --password "$NOTARIZATION_PASSWORD" \
             --team-id "$NOTARIZATION_TEAM_ID" \
             --wait --timeout 30m 2>&1 | tee notarize-output.txt
-          # Check result
+
+          # On failure, fetch Apple's detailed log before exiting
           if grep -q "Invalid" notarize-output.txt; then
-            SUBMISSION_ID=$(grep "id:" notarize-output.txt | head -1 | awk '{print $2}')
+            SUBMISSION_ID=$(grep "  id:" notarize-output.txt | head -1 | awk '{print $2}')
             xcrun notarytool log "$SUBMISSION_ID" \
               --apple-id "$NOTARIZATION_APPLE_ID" \
               --password "$NOTARIZATION_PASSWORD" \
               --team-id "$NOTARIZATION_TEAM_ID" || true
             exit 1
           fi
+
           if grep -q "Accepted" notarize-output.txt; then
             xcrun stapler staple "$APP_PATH"
           else
-            echo "Notarization did not complete — check Apple's status"
+            echo "Notarization did not complete — check Apple status page"
             exit 1
           fi
 
