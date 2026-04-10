@@ -38,6 +38,7 @@ jobs:
             CODE_SIGN_IDENTITY="Developer ID Application" \
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM=8UDDXP853Z \
+            OTHER_CODE_SIGN_FLAGS="--timestamp" \
             build
 
       - name: Notarize
@@ -52,7 +53,16 @@ jobs:
             --apple-id "$NOTARIZATION_APPLE_ID" \
             --password "$NOTARIZATION_PASSWORD" \
             --team-id "$NOTARIZATION_TEAM_ID" \
-            --wait
+            --wait 2>&1 | tee notarize-output.txt
+          # If notarization failed, fetch the log before exiting
+          if grep -q "Invalid" notarize-output.txt; then
+            SUBMISSION_ID=$(grep "id:" notarize-output.txt | head -1 | awk '{print $2}')
+            xcrun notarytool log "$SUBMISSION_ID" \
+              --apple-id "$NOTARIZATION_APPLE_ID" \
+              --password "$NOTARIZATION_PASSWORD" \
+              --team-id "$NOTARIZATION_TEAM_ID" || true
+            exit 1
+          fi
           xcrun stapler staple "$APP_PATH"
 
       - name: Package
