@@ -217,6 +217,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     }
 
     private func closePopover() {
+        // Keep the popover alive while recording so the Stop button stays reachable.
+        guard recordingManager.state != .recording else { return }
         popoverWindow?.orderOut(nil)
         popoverWindow = nil
         if let monitor = eventMonitor {
@@ -298,9 +300,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     }
 
     @objc func openSettings() {
+        closePopover()
+
         if let window = settingsWindow {
             window.makeKeyAndOrderFront(nil)
-            NSApp.activate()
+            NSApp.activate(ignoringOtherApps: true)
             return
         }
 
@@ -315,7 +319,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         window.center()
         window.isReleasedWhenClosed = false
         window.makeKeyAndOrderFront(nil)
-        NSApp.activate()
+        NSApp.activate(ignoringOtherApps: true)
         settingsWindow = window
     }
 }
