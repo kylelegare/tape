@@ -18,6 +18,8 @@ final class RecordingManager: ObservableObject {
 
     private var isFinalizing = false
 
+    let allowlist = MicAllowlist()
+
     private let audioRecorder = AudioRecorder()
     private let transcriptionService = TranscriptionService()
     private let micWatcher = MicWatcher()
@@ -30,11 +32,15 @@ final class RecordingManager: ObservableObject {
     // MARK: - Lifecycle
 
     func start() {
+        micWatcher.allowlist = allowlist
         micWatcher.onMicGrabbed = { [weak self] in
             Task { @MainActor in self?.handleMicGrabbed() }
         }
         micWatcher.onMicReleased = { [weak self] in
             Task { @MainActor in self?.handleMicReleased() }
+        }
+        allowlist.onToggle = { [weak self] in
+            self?.micWatcher.reevaluate()
         }
         micWatcher.start()
     }

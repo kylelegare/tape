@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct SettingsView: View {
+    let allowlist: MicAllowlist
+
     var body: some View {
         TabView {
             GeneralSettingsTab()
@@ -11,8 +13,11 @@ struct SettingsView: View {
 
             VocabularySettingsTab()
                 .tabItem { Label("Vocabulary", systemImage: "text.book.closed") }
+
+            DetectionSettingsTab(allowlist: allowlist)
+                .tabItem { Label("Detection", systemImage: "antenna.radiowaves.left.and.right") }
         }
-        .frame(width: 450, height: 310)
+        .frame(width: 450, height: 420)
     }
 }
 
@@ -166,6 +171,59 @@ struct VocabularySettingsTab: View {
     }
 }
 
+// MARK: - Detection
+
+struct DetectionSettingsTab: View {
+    @ObservedObject var allowlist: MicAllowlist
+
+    var body: some View {
+        Form {
+            Section("Meeting apps") {
+                ForEach(allowlist.defaultAppEntries) { entry in
+                    AppToggleRow(
+                        entry: entry,
+                        isEnabled: allowlist.isEnabled(entry.bundleID),
+                        onToggle: { allowlist.toggle(entry.bundleID) }
+                    )
+                }
+            }
+
+            if !allowlist.discoveredApps.isEmpty {
+                Section("Also detected on this Mac") {
+                    ForEach(allowlist.discoveredApps) { entry in
+                        AppToggleRow(
+                            entry: entry,
+                            isEnabled: allowlist.isEnabled(entry.bundleID),
+                            onToggle: { allowlist.toggle(entry.bundleID) }
+                        )
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
+    }
+}
+
+struct AppToggleRow: View {
+    let entry: AppEntry
+    let isEnabled: Bool
+    let onToggle: () -> Void
+
+    var body: some View {
+        Toggle(isOn: Binding(get: { isEnabled }, set: { _ in onToggle() })) {
+            HStack(spacing: 8) {
+                if let icon = entry.icon {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .frame(width: 20, height: 20)
+                }
+                Text(entry.displayName)
+            }
+        }
+    }
+}
+
 #Preview {
-    SettingsView()
+    SettingsView(allowlist: MicAllowlist())
 }

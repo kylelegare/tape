@@ -9,16 +9,8 @@ struct MeetingIdentity {
     let title: String
     let source: String
 
-    /// Known meeting app bundle identifiers and their display names
-    private static let meetingApps: [String: String] = [
-        "us.zoom.xos": "Zoom",
-        "com.microsoft.teams": "Teams",
-        "com.microsoft.teams2": "Teams",
-        "com.cisco.webexmeetingsapp": "Webex",
-        "com.google.Chrome": "Chrome", // could be Meet
-        "com.apple.FaceTime": "FaceTime",
-        "com.tinyspeck.slackmacgap": "Slack",
-    ]
+    /// Delegates to MicAllowlist so we maintain a single source of truth.
+    private static var meetingApps: [String: String] { MicAllowlist.defaultAllowlist }
 
     @MainActor
     static func resolve() -> MeetingIdentity {
