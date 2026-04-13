@@ -71,6 +71,7 @@ final class MicAllowlist: ObservableObject {
             }
             UserDefaults.standard.set(additions, forKey: additionsKey)
         }
+        objectWillChange.send()
         onToggle?()
     }
 
@@ -93,10 +94,14 @@ final class MicAllowlist: ObservableObject {
 
     // MARK: - Settings UI helpers
 
-    /// All default apps as AppEntry objects, sorted by display name.
+    /// Default apps that are actually installed, sorted by display name.
+    /// Non-installed apps stay pre-allowed silently — they just don't clutter the UI.
     var defaultAppEntries: [AppEntry] {
         Self.defaultAllowlist
-            .map { bundleID, name in AppEntry.resolve(bundleID: bundleID, fallbackName: name) }
+            .compactMap { bundleID, name -> AppEntry? in
+                guard NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) != nil else { return nil }
+                return AppEntry.resolve(bundleID: bundleID, fallbackName: name)
+            }
             .sorted { $0.displayName < $1.displayName }
     }
 
