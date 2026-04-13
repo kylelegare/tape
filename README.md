@@ -108,7 +108,9 @@ When you stop recording, tape transcribes locally and saves a `.md` file to your
 
 ## Whisper models
 
-Models download on first use to `~/Library/Application Support/tape/models/`.
+You can change the model anytime in **Settings → Recording → Whisper model**. The new model downloads automatically the next time you transcribe — no manual steps.
+
+Models are stored at `~/Library/Application Support/tape/models/`.
 
 | Model | Size | Notes |
 |---|---|---|
