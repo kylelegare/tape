@@ -13,7 +13,7 @@ enum TapeNotificationID {
 /// Returns the default tape output folder path (~/Documents/Tape), creating it if needed.
 func tapeOutputFolder() -> String {
     let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-    let tapePath = documents.appendingPathComponent("Tape")
+    let tapePath = documents.appendingPathComponent("tape")
     try? FileManager.default.createDirectory(at: tapePath, withIntermediateDirectories: true)
     return tapePath.path
 }

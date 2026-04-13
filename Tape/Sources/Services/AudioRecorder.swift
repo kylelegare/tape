@@ -56,25 +56,25 @@ final class AudioRecorder {
         return outURL
     }
 
-    func stopRecording() async {
-        guard isRecording else { return }
+    func stopRecording() async -> RecordingTracks? {
+        guard isRecording else { return nil }
         isRecording = false
 
         teardownProcessTap()
         teardownMicCapture()
 
-        guard let micURL = micTempURL, let outURL = finalOutputURL else { return }
+        guard let micURL = micTempURL, let outURL = finalOutputURL else { return nil }
 
         if let sysURL = systemTempURL {
-            // Mix system audio + mic
+            // Mix system audio + mic into the final m4a (archived file)
             try? await mixTracks(systemURL: sysURL, micURL: micURL, to: outURL)
-            try? FileManager.default.removeItem(at: sysURL)
         } else {
-            // Mic-only — just convert the CAF to m4a
+            // Mic-only — convert CAF to m4a
             try? await convertToM4A(inputURL: micURL, outputURL: outURL)
         }
 
-        try? FileManager.default.removeItem(at: micURL)
+        // CAF files are NOT deleted here — RecordingManager cleans them up after transcription
+        return RecordingTracks(mixedURL: outURL, micURL: micURL, systemURL: systemTempURL)
     }
 
     // MARK: - System Audio Capture
@@ -296,6 +296,19 @@ final class AudioRecorder {
         guard err == noErr else { throw RecorderError.coreAudioError(err) }
         return desc
     }
+}
+
+// MARK: - Recording output
+
+/// URLs returned after a recording session completes.
+/// RecordingManager owns cleanup of the CAF files after transcription.
+struct RecordingTracks {
+    /// Mixed m4a — the permanent archived file saved to the output folder.
+    let mixedURL: URL
+    /// Mic-only CAF — transcribed as the user's voice.
+    let micURL: URL
+    /// System-audio-only CAF — transcribed as "Others". Nil if system capture failed.
+    let systemURL: URL?
 }
 
 // MARK: - Errors

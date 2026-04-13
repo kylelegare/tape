@@ -88,14 +88,18 @@ final class RecordingManager: ObservableObject {
 
     /// Called by the manual Record button in the popover.
     func startOneOffRecording() {
-        let identity = MeetingIdentity.resolve()
-        Task { await startRecording(identity: identity) }
+        Task {
+            let identity = await MeetingIdentity.resolve()
+            await startRecording(identity: identity)
+        }
     }
 
     /// Called when the user taps "Record" on the mic-active notification.
     func startRecordingFromPrompt() {
-        let identity = MeetingIdentity.resolve()
-        Task { await startRecording(identity: identity) }
+        Task {
+            let identity = await MeetingIdentity.resolve()
+            await startRecording(identity: identity)
+        }
     }
 
     /// Stop whatever is currently recording.
@@ -132,26 +136,30 @@ final class RecordingManager: ObservableObject {
 
         let duration = recordingDuration
         let minimumDuration = TimeInterval(UserDefaults.standard.integer(forKey: "minimumDuration"))
-        // Default minimum: 5 seconds — just enough to discard accidental taps
         let minSeconds = minimumDuration > 0 ? minimumDuration : 5
 
-        await audioRecorder.stopRecording()
+        guard let tracks = await audioRecorder.stopRecording() else {
+            statusMessage = "recording failed"
+            cleanup()
+            return
+        }
 
         if duration < minSeconds {
-            if let audioURL = audioFileURL {
-                try? FileManager.default.removeItem(at: audioURL)
-            }
+            try? FileManager.default.removeItem(at: tracks.mixedURL)
+            try? FileManager.default.removeItem(at: tracks.micURL)
+            if let sysURL = tracks.systemURL { try? FileManager.default.removeItem(at: sysURL) }
             statusMessage = "recording discarded (< \(Int(minSeconds))s)"
             cleanup()
             return
         }
 
-        guard let audioURL = audioFileURL, let identity = meetingIdentity else {
+        guard let identity = meetingIdentity else {
             cleanup()
             return
         }
 
         state = .transcribing
+        statusMessage = "transcribing — \(identity.title)"
 
         var vocabulary: [String] = []
         if let json = UserDefaults.standard.string(forKey: "customVocabulary"),
@@ -161,33 +169,32 @@ final class RecordingManager: ObservableObject {
         }
 
         let userName = UserDefaults.standard.string(forKey: "userName") ?? ""
+        let speakerName = userName.isEmpty ? "Speaker 1" : userName
         let whisperModel = UserDefaults.standard.string(forKey: "whisperModel") ?? "tiny"
 
         do {
-            if ModelManager.shared.modelPath(for: whisperModel) == nil {
-                statusMessage = "downloading \(whisperModel) model…"
-            } else {
-                statusMessage = "transcribing — \(identity.title)"
-            }
-            let modelPath = try await ModelManager.shared.ensureModel(whisperModel)
-            statusMessage = "transcribing — \(identity.title)"
-
-            var result = try await transcriptionService.transcribe(
-                audioURL: audioURL,
-                modelPath: modelPath,
+            // Transcribe mic track — user's voice
+            let micSegments = try await transcriptionService.transcribe(
+                audioURL: tracks.micURL,
+                modelName: whisperModel,
                 vocabulary: vocabulary,
-                speakerName: userName
+                speakerName: speakerName
             )
 
-            // Filter out hallucinated segments that fall in non-speech regions
-            let filtered = try await transcriptionService.filterHallucinations(
-                segments: result.segments, audioURL: audioURL
-            )
-            result = TranscriptionService.TranscriptResult(
-                segments: filtered, speakerName: result.speakerName
-            )
+            // Transcribe system track if available — the other side
+            var allSegments = micSegments
+            if let sysURL = tracks.systemURL {
+                let sysSegments = try await transcriptionService.transcribe(
+                    audioURL: sysURL,
+                    modelName: whisperModel,
+                    vocabulary: vocabulary,
+                    speakerName: "Others"
+                )
+                // Interleave by timestamp — both files start at the same wall-clock time
+                allSegments = (micSegments + sysSegments).sorted { $0.startMs < $1.startMs }
+            }
 
-            var transcript = transcriptionService.formatTranscript(result: result)
+            var transcript = transcriptionService.formatTranscript(segments: allSegments)
             if !vocabulary.isEmpty {
                 transcript = transcriptionService.applyVocabularyCorrections(transcript, vocabulary: vocabulary)
             }
@@ -203,6 +210,10 @@ final class RecordingManager: ObservableObject {
             )
             statusMessage = "transcription failed — \(identity.title)"
         }
+
+        // Clean up CAF temp files after transcription (success or failure)
+        try? FileManager.default.removeItem(at: tracks.micURL)
+        if let sysURL = tracks.systemURL { try? FileManager.default.removeItem(at: sysURL) }
 
         cleanup()
 
@@ -230,14 +241,13 @@ final class RecordingManager: ObservableObject {
         timeFormatter.dateFormat = "HH:mm"
         let timeString = timeFormatter.string(from: startDate)
 
-        // HH-mm in filename prevents silent overwrite when two recordings share the same title on the same day
         let fileTimeFormatter = DateFormatter()
         fileTimeFormatter.dateFormat = "HH-mm"
         let fileTimeString = fileTimeFormatter.string(from: startDate)
 
         let slug = identity.title
             .lowercased()
-            .replacingOccurrences(of: "/", with: "-")   // prevent path traversal
+            .replacingOccurrences(of: "/", with: "-")
             .replacingOccurrences(of: " ", with: "-")
             .replacingOccurrences(of: "[^a-z0-9\\-]", with: "", options: .regularExpression)
             .prefix(60)
@@ -249,7 +259,6 @@ final class RecordingManager: ObservableObject {
         let userName = UserDefaults.standard.string(forKey: "userName") ?? ""
         let speakerName = userName.isEmpty ? "Speaker 1" : userName
 
-        // Quote title in YAML to prevent frontmatter corruption if it contains a colon
         let escapedTitle = identity.title.contains(":") ? "\"\(identity.title)\"" : identity.title
         let content = """
         ---
@@ -260,7 +269,6 @@ final class RecordingManager: ObservableObject {
         source: \(identity.source)
         speakers:
           - \(speakerName)
-          - Speaker 2
         partial: \(partial)
         ---
 

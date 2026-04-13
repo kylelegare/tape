@@ -1,10 +1,11 @@
 import AppKit
+import EventKit
 import Foundation
 
 /// Resolves meeting identity using a layered fallback chain:
-/// 1. Window title of frontmost meeting app (Zoom, Teams, Meet, etc.)
-/// 2. ICS calendar event match (±15 min window)
-/// 3. Frontmost app name + timestamp
+/// 1. Calendar event currently in progress or starting within 5 min (EventKit)
+/// 2. Window title of frontmost meeting app (Zoom, Teams, Meet, etc.)
+/// 3. Frontmost app name
 struct MeetingIdentity {
     let title: String
     let source: String
@@ -12,13 +13,21 @@ struct MeetingIdentity {
     /// Delegates to MicAllowlist so we maintain a single source of truth.
     private static var meetingApps: [String: String] { MicAllowlist.defaultAllowlist }
 
+    /// Long-lived store — EventKit objects become invalid if the store is released.
+    private static let store = EKEventStore()
+
     @MainActor
-    static func resolve() -> MeetingIdentity {
+    static func resolve() async -> MeetingIdentity {
         let frontmostApp = NSWorkspace.shared.frontmostApplication
         let bundleID = frontmostApp?.bundleIdentifier ?? ""
         let appName = meetingApps[bundleID] ?? frontmostApp?.localizedName ?? "Unknown"
 
-        // Layer 1: Try to read window title from the frontmost app
+        // Layer 1: Calendar event currently in progress or starting within 5 min
+        if let calendarTitle = await calendarMatch() {
+            return MeetingIdentity(title: calendarTitle, source: appName)
+        }
+
+        // Layer 2: Try to read window title from the frontmost app
         if let windowTitle = getWindowTitle(for: frontmostApp), !windowTitle.isEmpty {
             let cleaned = cleanWindowTitle(windowTitle, appName: appName)
             if !cleaned.isEmpty {
@@ -26,10 +35,57 @@ struct MeetingIdentity {
             }
         }
 
-        // Layer 2: Fallback to app name + timestamp
-        let timestamp = Date().formatted(date: .abbreviated, time: .shortened)
-        return MeetingIdentity(title: "\(appName) — \(timestamp)", source: appName)
+        // Layer 3: Fallback to just the app name — date/time is already in the filename and frontmatter
+        return MeetingIdentity(title: appName, source: appName)
     }
+
+    // MARK: - Calendar matching
+
+    /// Returns the title of the best-matching calendar event, or nil to fall through.
+    /// Silently returns nil on permission denial, restricted access, or any error.
+    private static func calendarMatch() async -> String? {
+        // Check existing authorization before prompting
+        let status = EKEventStore.authorizationStatus(for: .event)
+
+        switch status {
+        case .fullAccess:
+            break // already authorized — proceed to fetch
+        case .notDetermined:
+            // Request access — OS shows the permission dialog once
+            guard (try? await store.requestFullAccessToEvents()) == true else { return nil }
+        case .denied, .restricted, .writeOnly:
+            return nil
+        @unknown default:
+            return nil
+        }
+
+        let now = Date()
+        // Broad predicate window: covers long in-progress meetings (up to 4 hours) and upcoming ones (5 min)
+        let windowStart = now.addingTimeInterval(-4 * 3600)
+        let windowEnd = now.addingTimeInterval(5 * 60)
+
+        let predicate = store.predicateForEvents(withStart: windowStart, end: windowEnd, calendars: nil)
+
+        // events(matching:) is synchronous — run off the main thread
+        let events = await Task.detached(priority: .userInitiated) {
+            store.events(matching: predicate)
+        }.value
+
+        let fiveMinutes: TimeInterval = 5 * 60
+        let candidates = events.filter { event in
+            guard !event.isAllDay else { return false }
+            let inProgress = event.startDate <= now && event.endDate > now
+            let startingSoon = event.startDate > now && event.startDate <= now.addingTimeInterval(fiveMinutes)
+            return inProgress || startingSoon
+        }
+
+        // Most recently started event = the meeting the user just joined
+        let best = candidates.sorted { $0.startDate > $1.startDate }.first
+        let title = best?.title.trimmingCharacters(in: .whitespaces)
+        return (title?.isEmpty == false) ? title : nil
+    }
+
+    // MARK: - Window title helpers
 
     /// Read the window title of an app via Accessibility API
     private static func getWindowTitle(for app: NSRunningApplication?) -> String? {

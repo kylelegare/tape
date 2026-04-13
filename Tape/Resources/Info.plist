@@ -28,5 +28,7 @@
 	<string>tape needs microphone access to record your side of meetings.</string>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>tape records system audio to capture both sides of your meetings.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>tape reads your calendar to name recordings after your current meeting.</string>
 </dict>
 </plist>

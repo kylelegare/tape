@@ -79,7 +79,7 @@ final class MicAllowlist: ObservableObject {
 
     /// Records any non-default bundle IDs seen using the mic, for display in Settings.
     func updateDiscovered(_ bundleIDs: [String]) {
-        let novel = bundleIDs.filter { Self.defaultAllowlist[$0] == nil }
+        let novel = bundleIDs.filter { Self.defaultAllowlist[$0] == nil && $0 != "com.legare.tape" }
         guard !novel.isEmpty else { return }
 
         var existing = discoveredApps
