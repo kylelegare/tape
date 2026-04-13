@@ -29,10 +29,10 @@ The idea is that you've already got LLMs, agents, and a notes workflow you like.
 - Lives in the **macOS menu bar** — out of the way until you need it
 - Records from your mic, transcribes locally with [Whisper](https://github.com/openai/whisper)
 - **Smart detection** — recognizes when Zoom, Teams, Slack, Chrome, and other meeting apps start using your mic, and prompts you to record
-- Ignores voice dictation tools (like Monologue) so they don't trigger false alerts
+- Has exclusion list for apps that access the mic where you wouldn't want it to trigger. 
 - Filters out hallucinated filler text that Whisper generates during silent gaps
 - Saves each recording as a **Markdown file** with YAML frontmatter
-- Nothing leaves your machine — no cloud, no telemetry, no analytics
+- keeps all info local
 
 ## Example output
 
