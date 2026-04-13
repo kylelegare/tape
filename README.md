@@ -18,27 +18,25 @@
 
 ## Why this exists
 
-Most transcription tools do a lot. Dashboards, coaching tools, integrations, cloud sync... and then the subscription fee to hold it all together.
-tape doesn't do most of that. It records your meeting, transcribes it locally with Whisper, and saves a Markdown file to your machine. That's the whole thing.
-The idea is that you've already got LLMs, agents, and a notes workflow you like. tape just gets the transcript out of the way so those tools can do their thing. No account, no subscription, no cloud everything stays on your machine.
+Most transcription tools do a lot. Dashboards, coaching tools, integrations, cloud sync — and a subscription to hold it all together.
 
-1. Click **Record**
-2. Talk
-3. Click **Stop**
-4. Get a `.md` file
+tape doesn't do most of that. It records your meeting, transcribes it locally with Whisper, and saves a Markdown file to your machine. That's the whole thing.
+
+The idea is that you've already got LLMs, agents, and a notes workflow you like. tape just gets the transcript out of the way so those tools can do their thing. No account, no subscription, no cloud — everything stays on your machine.
 
 ## What it does
 
-- Lives in the **macOS menu bar** — one click to start
-- Records from your mic, transcribes locally with Whisper
-- Filters out hallucinated filler text that Whisper generates in silent gaps
+- Lives in the **macOS menu bar** — out of the way until you need it
+- Records from your mic, transcribes locally with [Whisper](https://github.com/openai/whisper)
+- **Smart detection** — recognizes when Zoom, Teams, Slack, Chrome, and other meeting apps start using your mic, and prompts you to record
+- Ignores voice dictation tools (like Monologue) so they don't trigger false alerts
+- Filters out hallucinated filler text that Whisper generates during silent gaps
 - Saves each recording as a **Markdown file** with YAML frontmatter
-- Nothing leaves your machine — no cloud, no telemetry
-- Output is just text — easy to grep, sync, or hand to an agent
+- Nothing leaves your machine — no cloud, no telemetry, no analytics
 
 ## Example output
 
-Every recording becomes a file you own.
+Every recording becomes a plain text file you own.
 
 ```markdown
 ---
@@ -55,8 +53,7 @@ partial: false
 
 ## Context
 
-- Roadmap review
-- Q2 planning
+
 
 ## Transcript
 
@@ -65,37 +62,49 @@ partial: false
 
 ## Getting started
 
-### Download the app
+### Download (easiest)
 
-Go to [Releases](https://github.com/kylelegare/tape/releases), download `Tape.zip`, unzip it, and drag `Tape.app` to your Applications folder.
+1. Go to [Releases](https://github.com/kylelegare/tape/releases) and download `Tape.zip`
+2. Unzip it and drag `Tape.app` to your Applications folder
+3. Right-click → **Open** on first launch — macOS will warn you it's not from the App Store, just click Open to proceed. After that it opens normally.
 
-First launch: right-click → Open. macOS will ask if you trust it since it's not from the App Store — just say yes. After that it opens normally.
-
-Tape will ask for mic permission the first time you record, and download a small Whisper model (~75 MB) the first time you transcribe. Both happen once.
+tape will ask for microphone permission the first time you record, and download a small Whisper model (~75 MB) the first time you transcribe. Both happen once.
 
 ---
 
-### For developers
+### Build from source
 
-You'll need Xcode and macOS 15+.
+You'll need [Xcode](https://developer.apple.com/xcode/) (Apple's free developer tool) and macOS 15+.
 
 ```bash
 git clone https://github.com/kylelegare/tape
 open tape/Tape.xcodeproj
 ```
 
-Press the Play button in Xcode and it'll build and run on your machine.
+Press **⌘R** or the Play button to build and run.
+
+> **Note:** mic detection requires a signed build. If you're running an unsigned debug build, detection may not work correctly — use Download above if you just want to use the app.
+
+## How it works
+
+**Manual:** click the cassette icon in your menu bar → hit Record → hit Stop when you're done.
+
+**Auto-detection:** tape watches which apps are using your microphone at the process level. When a known meeting app (Zoom, Teams, Slack, etc.) picks up the mic, it sends you a notification with a Record button. No polling, no calendar access needed — it just watches what's actually happening on your machine.
+
+When you stop recording, tape transcribes locally and saves a `.md` file to your output folder.
 
 ## Settings
 
-| Setting | Default | Description |
-|---|---|---|
-| Output folder | `~/Documents/tape/` | Where `.md` files are saved |
-| Launch at login | Off | Start tape when you log in |
-| Your name | — | Labels your speaker name in transcripts |
-| Whisper model | `tiny` | Downloads on first use |
-| Min recording | `5s` | Short recordings are discarded |
-| Custom vocabulary | — | Bias transcription toward names and terms |
+| Tab | Setting | Default | What it does |
+|---|---|---|---|
+| General | Output folder | `~/Documents/tape/` | Where `.md` files are saved |
+| General | Launch at login | Off | Start tape when you log in |
+| Recording | Your name | — | Labels your speaker in the transcript |
+| Recording | Whisper model | `tiny` | Larger = more accurate, slower |
+| Recording | Min recording | `5s` | Recordings shorter than this are discarded |
+| Recording | Custom vocabulary | — | Bias transcription toward names and terms |
+| Detection | Meeting apps | 16 defaults on | Toggle which apps can trigger recording |
+| Detection | Also detected | — | Shows any other apps tape has seen using your mic |
 
 ## Whisper models
 
@@ -103,15 +112,25 @@ Models download on first use to `~/Library/Application Support/tape/models/`.
 
 | Model | Size | Notes |
 |---|---|---|
-| tiny | ~75 MB | Fastest, lightest |
-| base | ~142 MB | Better balance |
-| small | ~466 MB | Better accuracy |
+| tiny | ~75 MB | Fastest, good for most uses |
+| base | ~142 MB | Slightly better accuracy |
+| small | ~466 MB | Noticeably better |
 | medium | ~1.5 GB | High accuracy |
-| large-v3 | ~3.1 GB | Highest accuracy, slowest |
+| large-v3 | ~3.1 GB | Best quality, slowest |
+
+## Privacy
+
+tape is designed around not needing to trust it:
+
+- **No cloud.** Audio and transcripts never leave your machine.
+- **No account.** Nothing to sign up for.
+- **No background recording.** tape only records when you explicitly hit Record or confirm a notification prompt. It watches which apps are using your mic — not what they're saying.
+- **Mic permission** is handled by macOS. You can revoke it anytime in System Settings → Privacy & Security → Microphone.
+- **Open source.** You can read exactly what it does.
 
 ## Intentionally simple
 
-**tape** won't grow into a platform. There's no roadmap toward team plans, analytics, or AI meeting assistants. It records, it transcribes, it saves a file. That's the whole thing.
+tape won't grow into a platform. No roadmap toward team plans, analytics, or AI meeting assistants. It records, transcribes, saves a file. That's the whole thing.
 
 ## License
 
