@@ -46,7 +46,7 @@ struct RecordHero: View {
 
     private var idleView: some View {
         Button {
-            recordingManager.startOneOffRecording()
+            recordingManager.beginRecording()
         } label: {
             Label("Record", systemImage: "record.circle.fill")
                 .font(.system(size: 14, weight: .medium))

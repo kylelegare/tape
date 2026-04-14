@@ -5,6 +5,10 @@ import WhisperKit
 /// Format conversion and VAD are handled internally by WhisperKit.
 final class TranscriptionService {
 
+    /// Cached WhisperKit instance. Loading a model is expensive — reuse it across
+    /// both mic and system-audio transcription passes for the same recording.
+    private var cache: (modelName: String, kit: WhisperKit)?
+
     struct TranscriptSegment {
         let text: String
         let startMs: Int
@@ -25,11 +29,13 @@ final class TranscriptionService {
         speakerName: String
     ) async throws -> [TranscriptSegment] {
         let whisperKitModelName = ModelManager.whisperKitID(for: modelName)
-        let whisperKit = try await WhisperKit(
-            model: whisperKitModelName,
-            verbose: false,
-            logLevel: .none
-        )
+        let whisperKit: WhisperKit
+        if let hit = cache, hit.modelName == whisperKitModelName {
+            whisperKit = hit.kit
+        } else {
+            whisperKit = try await WhisperKit(model: whisperKitModelName, verbose: false, logLevel: .none)
+            cache = (modelName: whisperKitModelName, kit: whisperKit)
+        }
 
         let results: [TranscriptionResult] = try await whisperKit.transcribe(audioPath: audioURL.path)
 

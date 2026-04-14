@@ -24,7 +24,6 @@ final class RecordingManager: ObservableObject {
     private let transcriptionService = TranscriptionService()
     private let micWatcher = MicWatcher()
     private var recordingStartTime: Date?
-    private var audioFileURL: URL?
     private var durationTimer: Timer?
     private var meetingIdentity: MeetingIdentity?
     private var graceWindowTask: Task<Void, Never>?
@@ -86,16 +85,8 @@ final class RecordingManager: ObservableObject {
 
     // MARK: - Public recording entry points
 
-    /// Called by the manual Record button in the popover.
-    func startOneOffRecording() {
-        Task {
-            let identity = await MeetingIdentity.resolve()
-            await startRecording(identity: identity)
-        }
-    }
-
-    /// Called when the user taps "Record" on the mic-active notification.
-    func startRecordingFromPrompt() {
+    /// Start a recording. Called from the popover button or mic-active notification.
+    func beginRecording() {
         Task {
             let identity = await MeetingIdentity.resolve()
             await startRecording(identity: identity)
@@ -113,16 +104,18 @@ final class RecordingManager: ObservableObject {
 
     private func startRecording(identity: MeetingIdentity) async {
         guard state == .idle else { return }
+        // Set state before the first await so any concurrent Task racing through
+        // this guard sees a non-idle state and exits cleanly.
+        state = .recording
         meetingIdentity = identity
         currentMeetingTitle = identity.title
 
         do {
-            let url = try await audioRecorder.startRecording()
-            audioFileURL = url
+            try await audioRecorder.startRecording()
             recordingStartTime = Date()
-            state = .recording
             startDurationTimer()
         } catch {
+            state = .idle
             statusMessage = "recording failed: \(error.localizedDescription)"
         }
     }
@@ -309,7 +302,6 @@ final class RecordingManager: ObservableObject {
         state = .idle
         recordingDuration = 0
         recordingStartTime = nil
-        audioFileURL = nil
         meetingIdentity = nil
         currentMeetingTitle = nil
     }

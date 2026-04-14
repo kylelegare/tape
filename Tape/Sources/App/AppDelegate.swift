@@ -88,7 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     ) {
         if response.actionIdentifier == TapeNotificationID.actionRecord {
             Task { @MainActor in
-                self.recordingManager.startRecordingFromPrompt()
+                self.recordingManager.beginRecording()
             }
         }
         completionHandler()
@@ -276,7 +276,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     @objc private func toggleRecordingFromMenu() {
         switch recordingManager.state {
         case .idle:
-            recordingManager.startOneOffRecording()
+            recordingManager.beginRecording()
         case .recording:
             recordingManager.stopRecording()
         case .transcribing:

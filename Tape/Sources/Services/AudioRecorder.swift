@@ -30,7 +30,7 @@ final class AudioRecorder {
 
     // MARK: - Public API
 
-    func startRecording() async throws -> URL {
+    func startRecording() async throws {
         guard !isRecording else { throw RecorderError.alreadyRecording }
 
         let tempDir = FileManager.default.temporaryDirectory
@@ -53,7 +53,6 @@ final class AudioRecorder {
         try setupMicCapture(outputURL: micURL)
 
         isRecording = true
-        return outURL
     }
 
     func stopRecording() async -> RecordingTracks? {
