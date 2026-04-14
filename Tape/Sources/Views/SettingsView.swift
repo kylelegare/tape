@@ -1,4 +1,5 @@
 import SwiftUI
+import WhisperKit
 
 struct SettingsView: View {
     let allowlist: MicAllowlist
@@ -27,6 +28,10 @@ struct GeneralSettingsTab: View {
     @AppStorage("outputFolderPath") private var outputFolderPath: String = tapeOutputFolder()
     @StateObject private var launchManager = LaunchAtLoginManager.shared
 
+    private var appVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+    }
+
     var body: some View {
         Form {
             Section("Output") {
@@ -48,6 +53,15 @@ struct GeneralSettingsTab: View {
                 if let statusMessage = launchManager.statusMessage {
                     Text(statusMessage)
                         .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section {
+                HStack {
+                    Text("Version")
+                    Spacer()
+                    Text("v\(appVersion)")
                         .foregroundStyle(.secondary)
                 }
             }
@@ -80,7 +94,21 @@ struct RecordingSettingsTab: View {
     @AppStorage("whisperModel") private var whisperModel = "tiny"
     @AppStorage("minimumDuration") private var minimumDuration = 5
 
+    @State private var modelStatus: ModelStatus = .idle
+
     private let modelOptions = ["tiny", "base", "small", "medium", "large-v3"]
+
+    enum ModelStatus {
+        case idle, downloading, ready, failed
+        var label: String {
+            switch self {
+            case .idle: return ""
+            case .downloading: return "Downloading…"
+            case .ready: return "Downloaded"
+            case .failed: return "Download failed — will retry on next recording"
+            }
+        }
+    }
 
     var body: some View {
         Form {
@@ -94,17 +122,41 @@ struct RecordingSettingsTab: View {
                         Text(model.capitalized).tag(model)
                     }
                 }
-                .help("Models download on first use and are stored locally in Application Support.")
+                .onChange(of: whisperModel) { _, newModel in
+                    predownload(newModel)
+                }
+
+                if modelStatus != .idle {
+                    HStack(spacing: 6) {
+                        if modelStatus == .downloading {
+                            ProgressView().controlSize(.small)
+                        }
+                        Text(modelStatus.label)
+                            .font(.caption)
+                            .foregroundStyle(modelStatus == .failed ? .red : .secondary)
+                    }
+                }
 
                 Stepper("Minimum recording: \(minimumDuration)s", value: $minimumDuration, in: 5...300, step: 5)
-
-                Text("Models download on first transcription and stay on this Mac.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
         .padding()
+    }
+
+    private func predownload(_ modelName: String) {
+        modelStatus = .downloading
+        Task {
+            do {
+                let kitModelName = ModelManager.whisperKitID(for: modelName)
+                _ = try await WhisperKit(model: kitModelName, verbose: false, logLevel: .none, prewarm: false, load: false)
+                await MainActor.run { modelStatus = .ready }
+                try? await Task.sleep(for: .seconds(3))
+                await MainActor.run { if modelStatus == .ready { modelStatus = .idle } }
+            } catch {
+                await MainActor.run { modelStatus = .failed }
+            }
+        }
     }
 }
 
