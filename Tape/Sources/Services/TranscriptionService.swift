@@ -51,10 +51,13 @@ final class TranscriptionService {
         }
     }
 
-    /// Format labeled segments into markdown with speaker prefixes.
+    /// Format labeled segments into markdown with timestamps and speaker prefixes.
     func formatTranscript(segments: [TranscriptSegment]) -> String {
         segments.map { segment in
-            "**\(segment.speaker):** \(segment.text)"
+            let minutes = segment.startMs / 60_000
+            let seconds = (segment.startMs % 60_000) / 1000
+            let timestamp = String(format: "%d:%02d", minutes, seconds)
+            return "**[\(timestamp)] \(segment.speaker):** \(segment.text)"
         }.joined(separator: "\n\n")
     }
 
