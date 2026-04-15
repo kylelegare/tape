@@ -121,18 +121,20 @@ final class RecordingManager: ObservableObject {
     }
 
     private func finalizeRecording() async {
+        guard state == .recording else { return }
         guard !isFinalizing else { return }
         isFinalizing = true
-        defer { isFinalizing = false }
 
         stopDurationTimer()
 
         let duration = recordingDuration
+        let capturedStartTime = recordingStartTime
         let minimumDuration = TimeInterval(UserDefaults.standard.integer(forKey: "minimumDuration"))
         let minSeconds = minimumDuration > 0 ? minimumDuration : 5
 
         guard let tracks = await audioRecorder.stopRecording() else {
             statusMessage = "recording failed"
+            isFinalizing = false
             cleanup()
             return
         }
@@ -142,83 +144,89 @@ final class RecordingManager: ObservableObject {
             try? FileManager.default.removeItem(at: tracks.micURL)
             if let sysURL = tracks.systemURL { try? FileManager.default.removeItem(at: sysURL) }
             statusMessage = "recording discarded (< \(Int(minSeconds))s)"
+            isFinalizing = false
             cleanup()
             return
         }
 
         guard let identity = meetingIdentity else {
+            isFinalizing = false
             cleanup()
             return
         }
 
-        state = .transcribing
-        statusMessage = "transcribing — \(identity.title)"
-
+        // Snapshot everything needed before cleanup so the transcription Task
+        // is fully independent — a new recording can start immediately.
         var vocabulary: [String] = []
         if let json = UserDefaults.standard.string(forKey: "customVocabulary"),
            let data = json.data(using: .utf8),
            let words = try? JSONDecoder().decode([String].self, from: data) {
             vocabulary = words
         }
-
         let userName = UserDefaults.standard.string(forKey: "userName") ?? ""
         let speakerName = userName.isEmpty ? "Speaker 1" : userName
         let whisperModel = UserDefaults.standard.string(forKey: "whisperModel") ?? "tiny"
 
-        do {
-            // Transcribe mic track — user's voice
-            let micSegments = try await transcriptionService.transcribe(
-                audioURL: tracks.micURL,
-                modelName: whisperModel,
-                vocabulary: vocabulary,
-                speakerName: speakerName
-            )
-
-            // Transcribe system track if available — the other side
-            var allSegments = micSegments
-            if let sysURL = tracks.systemURL {
-                let sysSegments = try await transcriptionService.transcribe(
-                    audioURL: sysURL,
-                    modelName: whisperModel,
-                    vocabulary: vocabulary,
-                    speakerName: "Others"
-                )
-                // Interleave by timestamp — both files start at the same wall-clock time
-                allSegments = (micSegments + sysSegments).sorted { $0.startMs < $1.startMs }
-            }
-
-            var transcript = transcriptionService.formatTranscript(segments: allSegments)
-            if !vocabulary.isEmpty {
-                transcript = transcriptionService.applyVocabularyCorrections(transcript, vocabulary: vocabulary)
-            }
-
-            writeMeetingFile(identity: identity, duration: duration, transcript: transcript)
-            statusMessage = "saved — \(identity.title)"
-        } catch {
-            writeMeetingFile(
-                identity: identity,
-                duration: duration,
-                transcript: "[transcription failed: \(error.localizedDescription)]",
-                partial: true
-            )
-            statusMessage = "transcription failed — \(identity.title)"
-        }
-
-        // Clean up CAF temp files after transcription (success or failure)
-        try? FileManager.default.removeItem(at: tracks.micURL)
-        if let sysURL = tracks.systemURL { try? FileManager.default.removeItem(at: sysURL) }
-
+        // Return to idle immediately — next recording can start while this transcribes
+        isFinalizing = false
         cleanup()
 
-        try? await Task.sleep(for: .seconds(3))
-        if statusMessage?.starts(with: "saved") == true {
-            statusMessage = nil
+        // Transcribe in background; statusMessage updates are visible in the menu bar
+        // even while a new recording is in progress.
+        let service = TranscriptionService()
+        Task {
+            statusMessage = "transcribing — \(identity.title)"
+
+            do {
+                let micSegments = try await service.transcribe(
+                    audioURL: tracks.micURL,
+                    modelName: whisperModel,
+                    vocabulary: vocabulary,
+                    speakerName: speakerName
+                )
+
+                var allSegments = micSegments
+                if let sysURL = tracks.systemURL {
+                    let sysSegments = try await service.transcribe(
+                        audioURL: sysURL,
+                        modelName: whisperModel,
+                        vocabulary: vocabulary,
+                        speakerName: "Others"
+                    )
+                    allSegments = (micSegments + sysSegments).sorted { $0.startMs < $1.startMs }
+                }
+
+                var transcript = service.formatTranscript(segments: allSegments)
+                if !vocabulary.isEmpty {
+                    transcript = service.applyVocabularyCorrections(transcript, vocabulary: vocabulary)
+                }
+
+                writeMeetingFile(identity: identity, duration: duration, startTime: capturedStartTime, transcript: transcript)
+                statusMessage = "saved — \(identity.title)"
+            } catch {
+                writeMeetingFile(
+                    identity: identity,
+                    duration: duration,
+                    startTime: capturedStartTime,
+                    transcript: "[transcription failed: \(error.localizedDescription)]",
+                    partial: true
+                )
+                statusMessage = "transcription failed — \(identity.title)"
+            }
+
+            try? FileManager.default.removeItem(at: tracks.micURL)
+            if let sysURL = tracks.systemURL { try? FileManager.default.removeItem(at: sysURL) }
+
+            try? await Task.sleep(for: .seconds(3))
+            if statusMessage?.starts(with: "saved") == true {
+                statusMessage = nil
+            }
         }
     }
 
     // MARK: - Markdown Output
 
-    private func writeMeetingFile(identity: MeetingIdentity, duration: TimeInterval, transcript: String, partial: Bool = false) {
+    private func writeMeetingFile(identity: MeetingIdentity, duration: TimeInterval, startTime: Date?, transcript: String, partial: Bool = false) {
         let outputDir = URL(fileURLWithPath: resolvedOutputFolder())
 
         try? FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
@@ -228,7 +236,7 @@ final class RecordingManager: ObservableObject {
         dateFormatter.dateFormat = "yyyy-MM-dd"
         let dateString = dateFormatter.string(from: date)
 
-        let startDate = recordingStartTime ?? date
+        let startDate = startTime ?? date
 
         let timeFormatter = DateFormatter()
         timeFormatter.dateFormat = "HH:mm"

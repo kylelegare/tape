@@ -18,9 +18,20 @@ struct MeetingIdentity {
 
     @MainActor
     static func resolve() async -> MeetingIdentity {
+        // If Tape itself is frontmost (user opened the popover to hit Record),
+        // look for a running meeting app instead of returning "tape".
         let frontmostApp = NSWorkspace.shared.frontmostApplication
-        let bundleID = frontmostApp?.bundleIdentifier ?? ""
-        let appName = meetingApps[bundleID] ?? frontmostApp?.localizedName ?? "Unknown"
+        let effectiveApp: NSRunningApplication?
+        if frontmostApp?.bundleIdentifier == "com.legare.tape" {
+            effectiveApp = NSWorkspace.shared.runningApplications.first {
+                meetingApps[$0.bundleIdentifier ?? ""] != nil
+            }
+        } else {
+            effectiveApp = frontmostApp
+        }
+
+        let bundleID = effectiveApp?.bundleIdentifier ?? ""
+        let appName = meetingApps[bundleID] ?? effectiveApp?.localizedName ?? "Unknown"
 
         // Layer 1: Calendar event currently in progress or starting within 5 min
         if let calendarTitle = await calendarMatch() {
@@ -28,7 +39,7 @@ struct MeetingIdentity {
         }
 
         // Layer 2: Try to read window title from the frontmost app
-        if let windowTitle = getWindowTitle(for: frontmostApp), !windowTitle.isEmpty {
+        if let windowTitle = getWindowTitle(for: effectiveApp), !windowTitle.isEmpty {
             let cleaned = cleanWindowTitle(windowTitle, appName: appName)
             if !cleaned.isEmpty {
                 return MeetingIdentity(title: cleaned, source: appName)

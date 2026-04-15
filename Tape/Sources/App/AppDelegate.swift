@@ -217,8 +217,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
     }
 
     private func closePopover() {
-        // Keep the popover alive while recording so the Stop button stays reachable.
-        guard recordingManager.state != .recording else { return }
         popoverWindow?.orderOut(nil)
         popoverWindow = nil
         if let monitor = eventMonitor {
