@@ -10,7 +10,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/platform-macOS_15+-blue?logo=apple&logoColor=white" alt="macOS 15+">
   <img src="https://img.shields.io/badge/swift-5.9+-F05138?logo=swift&logoColor=white" alt="Swift">
-  <img src="https://img.shields.io/badge/whisper-local_transcription-green" alt="Whisper">
+  <img src="https://img.shields.io/badge/transcription-WhisperKit-green" alt="WhisperKit">
   <img src="https://img.shields.io/github/license/kylelegare/tape" alt="License">
 </p>
 
@@ -20,19 +20,17 @@
 
 Most transcription tools do a lot. Dashboards, coaching tools, integrations, cloud sync — and a subscription to hold it all together.
 
-tape doesn't do most of that. It records your meeting, transcribes it locally with Whisper, and saves a Markdown file to your machine. That's the whole thing.
+tape doesn't do most of that. It records your meeting, transcribes it locally, and saves a Markdown file to your machine. That's the whole thing.
 
 The idea is that you've already got LLMs, agents, and a notes workflow you like. tape just gets the transcript out of the way so those tools can do their thing. No account, no subscription, no cloud — everything stays on your machine.
 
 ## What it does
 
 - Lives in the **macOS menu bar** — out of the way until you need it
-- Records from your mic, transcribes locally with [Whisper](https://github.com/openai/whisper)
-- **Smart detection** — recognizes when Zoom, Teams, Slack, Chrome, and other meeting apps start using your mic, and prompts you to record
-- Has exclusion list for apps that access the mic where you wouldn't want it to trigger. 
-- Filters out hallucinated filler text that Whisper generates during silent gaps
+- Hit Record, hit Stop — that's it
+- Transcribes locally using [WhisperKit](https://github.com/argmaxinc/WhisperKit) — runs on your Neural Engine, never touches the network
 - Saves each recording as a **Markdown file** with YAML frontmatter
-- keeps all info local
+- Everything stays on your machine
 
 ## Example output
 
@@ -40,14 +38,12 @@ Every recording becomes a plain text file you own.
 
 ```markdown
 ---
-title: "Weekly Sync: Core"
-date: 2026-03-31
-time: 14:00
+title: "Apr 16, 2:30 PM"
+date: 2026-04-16
+time: 14:30
 duration: 47min
-source: Zoom
 speakers:
   - Kyle
-  - Speaker 2
 partial: false
 ---
 
@@ -57,7 +53,9 @@ partial: false
 
 ## Transcript
 
-[00:00] Kyle: ...
+**[0:00] Kyle:** ...
+
+**[1:23] Others:** ...
 ```
 
 ## Getting started
@@ -68,13 +66,13 @@ partial: false
 2. Unzip it and drag `Tape.app` to your Applications folder
 3. Right-click → **Open** on first launch — macOS will warn you it's not from the App Store, just click Open to proceed. After that it opens normally.
 
-tape will ask for microphone permission the first time you record, and download a small Whisper model (~75 MB) the first time you transcribe. Both happen once.
+tape will ask for microphone permission the first time you record, and download a Whisper model the first time you transcribe. Both happen once.
 
 ---
 
 ### Build from source
 
-You'll need [Xcode](https://developer.apple.com/xcode/) (Apple's free developer tool) and macOS 15+.
+You'll need [Xcode](https://developer.apple.com/xcode/) and macOS 15+.
 
 ```bash
 git clone https://github.com/kylelegare/tape
@@ -83,15 +81,11 @@ open tape/Tape.xcodeproj
 
 Press **⌘R** or the Play button to build and run.
 
-> **Note:** mic detection requires a signed build. If you're running an unsigned debug build, detection may not work correctly — use Download above if you just want to use the app.
-
 ## How it works
 
-**Manual:** click the cassette icon in your menu bar → hit Record → hit Stop when you're done.
+Click the cassette icon in your menu bar → hit **Record** → hit **Stop** when you're done.
 
-**Auto-detection:** tape watches which apps are using your microphone at the process level. When a known meeting app (Zoom, Teams, Slack, etc.) picks up the mic, it sends you a notification with a Record button. No polling, no calendar access needed — it just watches what's actually happening on your machine.
-
-When you stop recording, tape transcribes locally and saves a `.md` file to your output folder.
+tape transcribes the audio locally using WhisperKit (Apple Neural Engine) and saves a `.md` file to your output folder. State returns to idle immediately after you stop, so you can start the next recording while the previous one is still transcribing.
 
 ## Settings
 
@@ -100,17 +94,13 @@ When you stop recording, tape transcribes locally and saves a `.md` file to your
 | General | Output folder | `~/Documents/tape/` | Where `.md` files are saved |
 | General | Launch at login | Off | Start tape when you log in |
 | Recording | Your name | — | Labels your speaker in the transcript |
-| Recording | Whisper model | `tiny` | Larger = more accurate, slower |
+| Recording | Whisper model | `tiny` | Larger = more accurate, slower to transcribe |
 | Recording | Min recording | `5s` | Recordings shorter than this are discarded |
-| Recording | Custom vocabulary | — | Bias transcription toward names and terms |
-| Detection | Meeting apps | 16 defaults on | Toggle which apps can trigger recording |
-| Detection | Also detected | — | Shows any other apps tape has seen using your mic |
+| Vocabulary | Custom vocabulary | — | Fix common transcription mistakes for names and terms |
 
 ## Whisper models
 
-You can change the model anytime in **Settings → Recording → Whisper model**. The new model downloads automatically the next time you transcribe — no manual steps.
-
-Models are stored at `~/Library/Application Support/tape/models/`.
+Change the model anytime in **Settings → Recording → Whisper model**. The new model downloads automatically when you next transcribe.
 
 | Model | Size | Notes |
 |---|---|---|
@@ -124,9 +114,9 @@ Models are stored at `~/Library/Application Support/tape/models/`.
 
 tape is designed around not needing to trust it:
 
-- **No cloud.** Audio and transcripts never leave your machine.
+- **No cloud.** Audio and transcripts never leave your machine. Transcription runs entirely on-device via WhisperKit.
 - **No account.** Nothing to sign up for.
-- **No background recording.** tape only records when you explicitly hit Record or confirm a notification prompt. It watches which apps are using your mic — not what they're saying.
+- **No background activity.** tape only records when you explicitly hit Record. It does nothing when idle.
 - **Mic permission** is handled by macOS. You can revoke it anytime in System Settings → Privacy & Security → Microphone.
 - **Open source.** You can read exactly what it does.
 
