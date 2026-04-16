@@ -27,6 +27,10 @@ final class RecordingManager: ObservableObject {
     private var durationTimer: Timer?
     private var meetingIdentity: MeetingIdentity?
     private var graceWindowTask: Task<Void, Never>?
+    /// The most recently active allowlist app (excluding Tape itself).
+    /// Used so MeetingIdentity can pick the right app when Tape is frontmost.
+    private(set) var lastActiveMeetingApp: NSRunningApplication?
+    private var appActivationObserver: Any?
 
     // MARK: - Lifecycle
 
@@ -42,12 +46,30 @@ final class RecordingManager: ObservableObject {
             self?.micWatcher.reevaluate()
         }
         micWatcher.start()
+
+        // Track which meeting app the user was in before opening the popover
+        appActivationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self,
+                  let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                  app.bundleIdentifier != "com.legare.tape",
+                  MicAllowlist.defaultAllowlist[app.bundleIdentifier ?? ""] != nil
+            else { return }
+            Task { @MainActor in self.lastActiveMeetingApp = app }
+        }
     }
 
     func stop() {
         micWatcher.stop()
         graceWindowTask?.cancel()
         graceWindowTask = nil
+        if let observer = appActivationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+            appActivationObserver = nil
+        }
     }
 
     // MARK: - Mic detection handlers
@@ -87,8 +109,9 @@ final class RecordingManager: ObservableObject {
 
     /// Start a recording. Called from the popover button or mic-active notification.
     func beginRecording() {
+        let hint = lastActiveMeetingApp
         Task {
-            let identity = await MeetingIdentity.resolve()
+            let identity = await MeetingIdentity.resolve(hint: hint)
             await startRecording(identity: identity)
         }
     }

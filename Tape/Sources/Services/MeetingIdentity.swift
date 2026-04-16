@@ -17,13 +17,14 @@ struct MeetingIdentity {
     private static let store = EKEventStore()
 
     @MainActor
-    static func resolve() async -> MeetingIdentity {
+    static func resolve(hint: NSRunningApplication? = nil) async -> MeetingIdentity {
         // If Tape itself is frontmost (user opened the popover to hit Record),
-        // look for a running meeting app instead of returning "tape".
+        // prefer the hint (last-activated meeting app tracked by RecordingManager)
+        // so we don't accidentally pick the wrong allowlist app (e.g. Slack over Zoom).
         let frontmostApp = NSWorkspace.shared.frontmostApplication
         let effectiveApp: NSRunningApplication?
         if frontmostApp?.bundleIdentifier == "com.legare.tape" {
-            effectiveApp = NSWorkspace.shared.runningApplications.first {
+            effectiveApp = hint ?? NSWorkspace.shared.runningApplications.first {
                 meetingApps[$0.bundleIdentifier ?? ""] != nil
             }
         } else {
