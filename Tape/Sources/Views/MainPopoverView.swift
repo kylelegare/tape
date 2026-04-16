@@ -145,6 +145,7 @@ struct RecordingRow: View {
 
     @State private var isRenaming = false
     @State private var renameText = ""
+    @State private var isHovered = false
     @FocusState private var renameFocused: Bool
 
     var body: some View {
@@ -191,7 +192,8 @@ struct RecordingRow: View {
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 8)
-        .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary.opacity(0.3)))
+        .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary.opacity(isHovered ? 0.6 : 0.3)))
+        .onHover { isHovered = $0 }
         .contentShape(Rectangle())
         .onTapGesture {
             openMeetingDetailPanel(meeting: meeting, store: store)
