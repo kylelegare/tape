@@ -143,28 +143,15 @@ struct RecordingRow: View {
     let meeting: Meeting
     let store: MeetingStore
 
-    @State private var isRenaming = false
-    @State private var renameText = ""
     @State private var isHovered = false
-    @FocusState private var renameFocused: Bool
 
     var body: some View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
-                    if isRenaming {
-                        TextField("Name", text: $renameText)
-                            .textFieldStyle(.plain)
-                            .font(.subheadline)
-                            .focused($renameFocused)
-                            .onSubmit { commitRename() }
-                            .onExitCommand { isRenaming = false }
-                    } else {
-                        Text(meeting.title)
-                            .font(.subheadline)
-                            .lineLimit(1)
-                            .onTapGesture { startRenaming() }
-                    }
+                    Text(meeting.title)
+                        .font(.subheadline)
+                        .lineLimit(1)
                     if meeting.partial {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.caption2)
@@ -181,14 +168,9 @@ struct RecordingRow: View {
                 .foregroundStyle(.secondary)
             }
             Spacer()
-            Button {
-                openMeetingDetailPanel(meeting: meeting, store: store)
-            } label: {
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-            .buttonStyle(.plain)
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 8)
@@ -198,18 +180,6 @@ struct RecordingRow: View {
         .onTapGesture {
             openMeetingDetailPanel(meeting: meeting, store: store)
         }
-    }
-
-    private func startRenaming() {
-        renameText = meeting.title
-        isRenaming = true
-        renameFocused = true
-    }
-
-    private func commitRename() {
-        let trimmed = renameText.trimmingCharacters(in: .whitespaces)
-        if !trimmed.isEmpty { store.rename(meeting, to: trimmed) }
-        isRenaming = false
     }
 }
 

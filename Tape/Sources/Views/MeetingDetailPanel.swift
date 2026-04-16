@@ -9,6 +9,7 @@ struct MeetingDetailView: View {
     @State private var context: String = ""
     @State private var transcript: String = ""
     @State private var hasUnsavedChanges = false
+    @FocusState private var titleFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -35,18 +36,16 @@ struct MeetingDetailView: View {
                     .textFieldStyle(.plain)
                     .font(.title2)
                     .fontWeight(.semibold)
-                    .onSubmit {
-                        store.rename(meeting, to: editableTitle)
+                    .focused($titleFocused)
+                    .onSubmit { saveTitle() }
+                    .onChange(of: titleFocused) {
+                        if !titleFocused { saveTitle() }
                     }
 
                 HStack(spacing: 12) {
                     Text(meeting.date.formatted(date: .abbreviated, time: .shortened))
                     if let duration = meeting.duration {
                         Text("\(Int(duration / 60))min")
-                    }
-                    if let source = meeting.source {
-                        Text(source)
-                            .foregroundStyle(.secondary)
                     }
                     if meeting.partial {
                         Text("Partial")
@@ -63,6 +62,12 @@ struct MeetingDetailView: View {
             Spacer()
         }
         .padding(16)
+    }
+
+    private func saveTitle() {
+        let trimmed = editableTitle.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, trimmed != meeting.title else { return }
+        store.rename(meeting, to: trimmed)
     }
 
     private var contextSection: some View {
