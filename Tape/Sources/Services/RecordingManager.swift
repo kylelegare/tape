@@ -10,12 +10,40 @@ final class RecordingManager: ObservableObject {
     @Published var state: RecordingState = .idle
     @Published var recordingDuration: TimeInterval = 0
     @Published var statusMessage: String?
+    @Published var isTranscribing = false
 
     private var isFinalizing = false
 
     private let audioRecorder = AudioRecorder()
+    private let transcriptionService = TranscriptionService()
     private var recordingStartTime: Date?
     private var durationTimer: Timer?
+
+    // MARK: - Static date formatters (DateFormatter is expensive to allocate)
+
+    private static let titleFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d, h:mm a"
+        return f
+    }()
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f
+    }()
+
+    private static let fileTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH-mm"
+        return f
+    }()
 
     // MARK: - Public entry points
 
@@ -72,7 +100,7 @@ final class RecordingManager: ObservableObject {
             return
         }
 
-        // Snapshot settings before cleanup so transcription Task is fully independent
+        // Snapshot settings before cleanup so the transcription Task is fully independent
         var vocabulary: [String] = []
         if let json = UserDefaults.standard.string(forKey: "customVocabulary"),
            let data = json.data(using: .utf8),
@@ -82,18 +110,15 @@ final class RecordingManager: ObservableObject {
         let userName = UserDefaults.standard.string(forKey: "userName") ?? ""
         let speakerName = userName.isEmpty ? "Speaker 1" : userName
         let whisperModel = UserDefaults.standard.string(forKey: "whisperModel") ?? "tiny"
-
-        // Title is a human-readable timestamp — no app detection needed
-        let titleFormatter = DateFormatter()
-        titleFormatter.dateFormat = "MMM d, h:mm a"
-        let title = titleFormatter.string(from: capturedStartTime ?? Date())
+        let title = Self.titleFormatter.string(from: capturedStartTime ?? Date())
 
         // Return to idle immediately — next recording can start while this transcribes
         isFinalizing = false
         cleanup()
 
-        let service = TranscriptionService()
+        let service = transcriptionService
         Task {
+            isTranscribing = true
             statusMessage = "transcribing…"
 
             do {
@@ -120,18 +145,21 @@ final class RecordingManager: ObservableObject {
                     transcript = service.applyVocabularyCorrections(transcript, vocabulary: vocabulary)
                 }
 
-                writeMeetingFile(title: title, duration: duration, startTime: capturedStartTime, transcript: transcript)
+                writeMeetingFile(title: title, duration: duration, startTime: capturedStartTime, speakerName: speakerName, transcript: transcript)
                 statusMessage = "saved — \(title)"
             } catch {
                 writeMeetingFile(
                     title: title,
                     duration: duration,
                     startTime: capturedStartTime,
+                    speakerName: speakerName,
                     transcript: "[transcription failed: \(error.localizedDescription)]",
                     partial: true
                 )
                 statusMessage = "transcription failed"
             }
+
+            isTranscribing = false
 
             try? FileManager.default.removeItem(at: tracks.micURL)
             if let sysURL = tracks.systemURL { try? FileManager.default.removeItem(at: sysURL) }
@@ -145,23 +173,14 @@ final class RecordingManager: ObservableObject {
 
     // MARK: - Markdown Output
 
-    private func writeMeetingFile(title: String, duration: TimeInterval, startTime: Date?, transcript: String, partial: Bool = false) {
+    private func writeMeetingFile(title: String, duration: TimeInterval, startTime: Date?, speakerName: String, transcript: String, partial: Bool = false) {
         let outputDir = URL(fileURLWithPath: resolvedOutputFolder())
         try? FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
 
         let startDate = startTime ?? Date()
-
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        let dateString = dateFormatter.string(from: startDate)
-
-        let timeFormatter = DateFormatter()
-        timeFormatter.dateFormat = "HH:mm"
-        let timeString = timeFormatter.string(from: startDate)
-
-        let fileTimeFormatter = DateFormatter()
-        fileTimeFormatter.dateFormat = "HH-mm"
-        let fileTimeString = fileTimeFormatter.string(from: startDate)
+        let dateString = Self.dateFormatter.string(from: startDate)
+        let timeString = Self.timeFormatter.string(from: startDate)
+        let fileTimeString = Self.fileTimeFormatter.string(from: startDate)
 
         let slug = title
             .lowercased()
@@ -174,9 +193,6 @@ final class RecordingManager: ObservableObject {
         let fileURL = outputDir.appendingPathComponent(filename)
 
         let durationMinutes = Int(duration / 60)
-        let userName = UserDefaults.standard.string(forKey: "userName") ?? ""
-        let speakerName = userName.isEmpty ? "Speaker 1" : userName
-
         let escapedTitle = title.contains(":") ? "\"\(title)\"" : title
         let content = """
         ---

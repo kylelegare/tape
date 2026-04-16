@@ -181,20 +181,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Open Tape", action: #selector(showTapeFromMenu), keyEquivalent: ""))
 
-        let recordingItemTitle: String
-        let recordingItemEnabled: Bool
-
-        switch recordingManager.state {
-        case .idle:
-            recordingItemTitle = "Start Recording"
-            recordingItemEnabled = true
-        case .recording:
-            recordingItemTitle = "Stop Recording"
-            recordingItemEnabled = true
-        }
-
+        let recordingItemTitle = recordingManager.state == .recording ? "Stop Recording" : "Start Recording"
         let recordingItem = NSMenuItem(title: recordingItemTitle, action: #selector(toggleRecordingFromMenu), keyEquivalent: "")
-        recordingItem.isEnabled = recordingItemEnabled
         menu.addItem(recordingItem)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Open Recordings Folder", action: #selector(openRecordingsFolder), keyEquivalent: ""))

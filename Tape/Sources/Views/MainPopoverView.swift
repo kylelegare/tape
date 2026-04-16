@@ -57,7 +57,7 @@ struct RecordHero: View {
 
             if let msg = recordingManager.statusMessage {
                 HStack(spacing: 6) {
-                    if msg.starts(with: "transcribing") {
+                    if recordingManager.isTranscribing {
                         ProgressView().scaleEffect(0.7).controlSize(.small)
                     }
                     Text(msg)

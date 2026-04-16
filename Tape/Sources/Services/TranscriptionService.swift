@@ -63,17 +63,8 @@ final class TranscriptionService {
 
     /// Apply custom vocabulary find/replace to clean up transcription output.
     func applyVocabularyCorrections(_ text: String, vocabulary: [String]) -> String {
-        var result = text
-        for word in vocabulary {
-            let pattern = NSRegularExpression.escapedPattern(for: word)
-            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
-                result = regex.stringByReplacingMatches(
-                    in: result,
-                    range: NSRange(result.startIndex..., in: result),
-                    withTemplate: word
-                )
-            }
+        vocabulary.reduce(text) { result, word in
+            result.replacingOccurrences(of: word, with: word, options: .caseInsensitive)
         }
-        return result
     }
 }
