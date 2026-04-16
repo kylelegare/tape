@@ -1,16 +1,8 @@
 import Foundation
 
-// MARK: - Notification identifiers
-
-enum TapeNotificationID {
-    static let categoryMicActive = "TAPE_MIC_ACTIVE"
-    static let actionRecord = "TAPE_RECORD"
-    static let actionDismiss = "TAPE_DISMISS"
-}
-
 // MARK: - Output folder helpers
 
-/// Returns the default tape output folder path (~/Documents/Tape), creating it if needed.
+/// Returns the default tape output folder path (~/Documents/tape), creating it if needed.
 func tapeOutputFolder() -> String {
     let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
     let tapePath = documents.appendingPathComponent("tape")

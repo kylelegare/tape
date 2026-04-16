@@ -9,8 +9,7 @@
 /* Begin PBXBuildFile section */
 		083F9C664464DB7AE0DB8AB6 /* ModelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D46EB14E590C4A08BAB712F5 /* ModelManager.swift */; };
 		0B0FAEBD4CFFB86928F99B5F /* RecordingState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20A4868FFAEC11F29FD14F31 /* RecordingState.swift */; };
-		0F7E264DB8ECF8AF2733402B /* MeetingIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 996060E2F23EFD7881517D65 /* MeetingIdentity.swift */; };
-		B1C2D3E4F5A6B7C8D9E0F1A2 /* MicWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1C2D3E4F5A6B7C8D9E0F1A3 /* MicWatcher.swift */; };
+
 		34E1252D6FB6F60EC0F560D9 /* AudioRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38F749441A2FD05990B09FE8 /* AudioRecorder.swift */; };
 		39871D979E19B291591F81ED /* TapeConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E406FEF7365EA2318B2C67D /* TapeConstants.swift */; };
 		46BAD969A2F11A34AC617AA3 /* RecordingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A324F990974F7A6E1493AD58 /* RecordingManager.swift */; };
@@ -27,7 +26,7 @@
 		CBABA56AD590E5C676F4C82E /* MeetingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1389663D4D378B48826692 /* MeetingStore.swift */; };
 		CD2986D6336BFDE5C3482FC0 /* TapeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4A7332F97C7722EDDED1BB0 /* TapeApp.swift */; };
 		C1A2B3C4D5E6F7A8B9C0D1E3 /* AppEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A2B3C4D5E6F7A8B9C0D1E2 /* AppEntry.swift */; };
-		D1E2F3A4B5C6D7E8F9A0B1C3 /* MicAllowlist.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1E2F3A4B5C6D7E8F9A0B1C2 /* MicAllowlist.swift */; };
+
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -50,8 +49,7 @@
 		7E406FEF7365EA2318B2C67D /* TapeConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapeConstants.swift; sourceTree = "<group>"; };
 		8584A24172F167D789D40B89 /* Tape.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Tape.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		962B7C3290A91D19DE44FFDF /* MeetingStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingStoreTests.swift; sourceTree = "<group>"; };
-		996060E2F23EFD7881517D65 /* MeetingIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingIdentity.swift; sourceTree = "<group>"; };
-		B1C2D3E4F5A6B7C8D9E0F1A3 /* MicWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicWatcher.swift; sourceTree = "<group>"; };
+
 		A324F990974F7A6E1493AD58 /* RecordingManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingManager.swift; sourceTree = "<group>"; };
 		A4B01A7DA9DB7BD1DCE6A5C5 /* TapeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TapeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA1389663D4D378B48826692 /* MeetingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingStore.swift; sourceTree = "<group>"; };
@@ -62,7 +60,7 @@
 		F7682F2217FB973513E2A63C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		FB61070D9E8322E7E949224F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		C1A2B3C4D5E6F7A8B9C0D1E2 /* AppEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEntry.swift; sourceTree = "<group>"; };
-		D1E2F3A4B5C6D7E8F9A0B1C2 /* MicAllowlist.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicAllowlist.swift; sourceTree = "<group>"; };
+
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -82,9 +80,7 @@
 			children = (
 				38F749441A2FD05990B09FE8 /* AudioRecorder.swift */,
 				CA16E8D363435F0F01DBCA30 /* LaunchAtLoginManager.swift */,
-				996060E2F23EFD7881517D65 /* MeetingIdentity.swift */,
-				B1C2D3E4F5A6B7C8D9E0F1A3 /* MicWatcher.swift */,
-				D1E2F3A4B5C6D7E8F9A0B1C2 /* MicAllowlist.swift */,
+
 				AA1389663D4D378B48826692 /* MeetingStore.swift */,
 				D46EB14E590C4A08BAB712F5 /* ModelManager.swift */,
 				A324F990974F7A6E1493AD58 /* RecordingManager.swift */,
@@ -280,9 +276,7 @@
 				923EFE60E6AE0A75A51CA0D0 /* MainPopoverView.swift in Sources */,
 				863D7B3C86336AFAA6BAC43F /* Meeting.swift in Sources */,
 				9960318F1901103FA6E48760 /* MeetingDetailPanel.swift in Sources */,
-				0F7E264DB8ECF8AF2733402B /* MeetingIdentity.swift in Sources */,
-				B1C2D3E4F5A6B7C8D9E0F1A2 /* MicWatcher.swift in Sources */,
-				D1E2F3A4B5C6D7E8F9A0B1C3 /* MicAllowlist.swift in Sources */,
+
 				CBABA56AD590E5C676F4C82E /* MeetingStore.swift in Sources */,
 				083F9C664464DB7AE0DB8AB6 /* ModelManager.swift in Sources */,
 				46BAD969A2F11A34AC617AA3 /* RecordingManager.swift in Sources */,

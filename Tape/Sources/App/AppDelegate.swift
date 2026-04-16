@@ -1,10 +1,9 @@
 import AppKit
 import Combine
 import SwiftUI
-import UserNotifications
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUserNotificationCenterDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private var popoverWindow: NSWindow?
     private var eventMonitor: Any?
@@ -26,9 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         meetingStore = MeetingStore()
 
         setupMenuBar()
-        setupNotifications()
         meetingStore.startWatching()
-        recordingManager.start()
 
         stateCancellable = recordingManager.$state.receive(on: DispatchQueue.main).sink { [weak self] state in
             self?.updateStatusIcon(for: state)
@@ -44,54 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
 
     func applicationWillTerminate(_ notification: Notification) {
         guard !isRunningTests else { return }
-        recordingManager.stop()
         meetingStore.stopWatching()
-    }
-
-    // MARK: - Notifications
-
-    private func setupNotifications() {
-        let center = UNUserNotificationCenter.current()
-        center.delegate = self
-
-        let recordAction = UNNotificationAction(
-            identifier: TapeNotificationID.actionRecord,
-            title: "Record",
-            options: []
-        )
-        let dismissAction = UNNotificationAction(
-            identifier: TapeNotificationID.actionDismiss,
-            title: "Dismiss",
-            options: [.destructive]
-        )
-        let category = UNNotificationCategory(
-            identifier: TapeNotificationID.categoryMicActive,
-            actions: [recordAction, dismissAction],
-            intentIdentifiers: []
-        )
-        center.setNotificationCategories([category])
-        center.requestAuthorization(options: [.alert]) { _, _ in }
-    }
-
-    nonisolated func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification,
-        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
-    ) {
-        completionHandler([.banner])
-    }
-
-    nonisolated func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse,
-        withCompletionHandler completionHandler: @escaping () -> Void
-    ) {
-        if response.actionIdentifier == TapeNotificationID.actionRecord {
-            Task { @MainActor in
-                self.recordingManager.beginRecording()
-            }
-        }
-        completionHandler()
     }
 
     private var isRunningTests: Bool {
@@ -115,7 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         button.image = cassetteIcon()
 
         switch state {
-        case .idle, .transcribing:
+        case .idle:
             // Plain cassette, no dot
             button.title = ""
             button.imagePosition = .imageOnly
@@ -241,9 +191,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
         case .recording:
             recordingItemTitle = "Stop Recording"
             recordingItemEnabled = true
-        case .transcribing:
-            recordingItemTitle = "Transcribing…"
-            recordingItemEnabled = false
         }
 
         let recordingItem = NSMenuItem(title: recordingItemTitle, action: #selector(toggleRecordingFromMenu), keyEquivalent: "")
@@ -277,8 +224,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
             recordingManager.beginRecording()
         case .recording:
             recordingManager.stopRecording()
-        case .transcribing:
-            break
         }
     }
 
@@ -313,7 +258,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, UNUser
             defer: false
         )
         window.title = "tape"
-        window.contentView = NSHostingView(rootView: SettingsView(allowlist: recordingManager.allowlist))
+        window.contentView = NSHostingView(rootView: SettingsView())
         window.center()
         window.isReleasedWhenClosed = false
         window.makeKeyAndOrderFront(nil)

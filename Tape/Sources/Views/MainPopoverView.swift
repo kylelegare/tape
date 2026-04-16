@@ -25,7 +25,7 @@ struct MainPopoverView: View {
 // MARK: - Record Hero
 
 /// Top section — the primary action. Shows Record button when idle,
-/// live status + Stop when recording, progress when transcribing.
+/// live status + Stop when recording.
 struct RecordHero: View {
     @ObservedObject var recordingManager: RecordingManager
 
@@ -36,8 +36,6 @@ struct RecordHero: View {
                 idleView
             case .recording:
                 recordingView
-            case .transcribing:
-                transcribingView
             }
         }
         .padding(.horizontal, 12)
@@ -45,16 +43,30 @@ struct RecordHero: View {
     }
 
     private var idleView: some View {
-        Button {
-            recordingManager.beginRecording()
-        } label: {
-            Label("Record", systemImage: "record.circle.fill")
-                .font(.system(size: 14, weight: .medium))
-                .frame(maxWidth: .infinity)
+        VStack(spacing: 8) {
+            Button {
+                recordingManager.beginRecording()
+            } label: {
+                Label("Record", systemImage: "record.circle.fill")
+                    .font(.system(size: 14, weight: .medium))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .tint(.red)
+
+            if let msg = recordingManager.statusMessage {
+                HStack(spacing: 6) {
+                    if msg.starts(with: "transcribing") {
+                        ProgressView().scaleEffect(0.7).controlSize(.small)
+                    }
+                    Text(msg)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+            }
         }
-        .buttonStyle(.bordered)
-        .controlSize(.large)
-        .tint(.red)
     }
 
     private var recordingView: some View {
@@ -62,7 +74,7 @@ struct RecordHero: View {
             Image(systemName: "record.circle.fill")
                 .foregroundStyle(.red)
             VStack(alignment: .leading, spacing: 1) {
-                Text(recordingManager.currentMeetingTitle ?? "recording")
+                Text("Recording")
                     .font(.subheadline).fontWeight(.medium)
                     .lineLimit(1)
                 Text(formattedDuration)
@@ -76,16 +88,6 @@ struct RecordHero: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
-        }
-    }
-
-    private var transcribingView: some View {
-        HStack(spacing: 10) {
-            ProgressView().scaleEffect(0.75)
-            Text(recordingManager.statusMessage ?? "Transcribing…")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Spacer()
         }
     }
 
