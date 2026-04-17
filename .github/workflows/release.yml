@@ -99,10 +99,10 @@ jobs:
       - name: Package
         run: |
           APP_PATH=$(find build -name "Tape.app" -type d | head -1)
-          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" Tape.zip
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" tape.zip
 
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: Tape.zip
+          files: tape.zip
           generate_release_notes: true

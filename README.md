@@ -28,7 +28,7 @@ The idea is that you've already got LLMs, agents, and a notes workflow you like.
 
 - Lives in the **macOS menu bar** — out of the way until you need it
 - Hit Record, hit Stop — that's it
-- Transcribes locally using [WhisperKit](https://github.com/argmaxinc/WhisperKit) — runs on your Neural Engine, never touches the network
+- Transcribes offline using [WhisperKit](https://github.com/argmaxinc/WhisperKit) — no audio ever leaves your Mac
 - Saves each recording as a **Markdown file** with YAML frontmatter
 - Everything stays on your machine
 
@@ -62,11 +62,11 @@ partial: false
 
 ### Download (easiest)
 
-1. Go to [Releases](https://github.com/kylelegare/tape/releases) and download `Tape.zip`
+1. Go to [Releases](https://github.com/kylelegare/tape/releases) and download `tape.zip`
 2. Unzip it and drag `Tape.app` to your Applications folder
 3. Right-click → **Open** on first launch — macOS will warn you it's not from the App Store, just click Open to proceed. After that it opens normally.
 
-tape will ask for microphone permission the first time you record, and download a Whisper model the first time you transcribe. Both happen once.
+The first time you record, tape will ask for microphone permission. The first time you transcribe, it downloads the Whisper `tiny` model (~75 MB) automatically — this only happens once. You can switch to a more accurate model in Settings (we recommend `medium`).
 
 ---
 
@@ -85,7 +85,7 @@ Press **⌘R** or the Play button to build and run.
 
 Click the cassette icon in your menu bar → hit **Record** → hit **Stop** when you're done.
 
-tape transcribes the audio locally using WhisperKit (Apple Neural Engine) and saves a `.md` file to your output folder. State returns to idle immediately after you stop, so you can start the next recording while the previous one is still transcribing.
+tape transcribes the audio in the background and saves a `.md` file to your output folder. You can start a new recording immediately — you don't have to wait for transcription to finish.
 
 ## Settings
 
@@ -100,21 +100,21 @@ tape transcribes the audio locally using WhisperKit (Apple Neural Engine) and sa
 
 ## Whisper models
 
-Change the model anytime in **Settings → Recording → Whisper model**. The new model downloads automatically when you next transcribe.
+tape defaults to `tiny` for fast transcription. For better accuracy — especially with accents, names, or technical terms — switch to `medium`. The model downloads once in the background when you change it.
 
 | Model | Size | Notes |
 |---|---|---|
-| tiny | ~75 MB | Fastest, good for most uses |
+| tiny | ~75 MB | Default. Fast, good for clear audio |
 | base | ~142 MB | Slightly better accuracy |
 | small | ~466 MB | Noticeably better |
-| medium | ~1.5 GB | High accuracy |
-| large-v3 | ~3.1 GB | Best quality, slowest |
+| **medium** | **~1.5 GB** | **Recommended for best everyday accuracy** |
+| large-v3 | ~3.1 GB | Highest quality, slowest |
 
 ## Privacy
 
 tape is designed around not needing to trust it:
 
-- **No cloud.** Audio and transcripts never leave your machine. Transcription runs entirely on-device via WhisperKit.
+- **No cloud.** Audio and transcripts never leave your machine. Transcription runs entirely offline.
 - **No account.** Nothing to sign up for.
 - **No background activity.** tape only records when you explicitly hit Record. It does nothing when idle.
 - **Mic permission** is handled by macOS. You can revoke it anytime in System Settings → Privacy & Security → Microphone.
