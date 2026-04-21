@@ -163,34 +163,51 @@ struct VocabularySettingsTab: View {
     @State private var newWord = ""
 
     var body: some View {
-        Form {
-            Section("Custom Vocabulary") {
-                Text("Enter correct forms. tape uses these to bias transcription and fix common misrecognitions.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Enter names, acronyms, or terms that Whisper commonly mishears. tape corrects them in every transcript.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
-                HStack {
-                    TextField("Add word or phrase", text: $newWord)
-                        .onSubmit { addWord() }
-                    Button("Add") { addWord() }
-                        .disabled(newWord.trimmingCharacters(in: .whitespaces).isEmpty)
-                }
-
-                if !words.isEmpty {
-                    List {
-                        ForEach(words, id: \.self) { word in
-                            Text(word)
-                        }
-                        .onDelete { indices in
-                            words.remove(atOffsets: indices)
-                            saveWords()
-                        }
-                    }
-                    .frame(minHeight: 100)
-                }
+            HStack {
+                TextField("Add word or phrase", text: $newWord)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit { addWord() }
+                Button("Add") { addWord() }
+                    .disabled(newWord.trimmingCharacters(in: .whitespaces).isEmpty)
             }
+
+            if words.isEmpty {
+                Text("No words added yet")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(words, id: \.self) { word in
+                        HStack {
+                            Text(word)
+                                .font(.subheadline)
+                            Spacer()
+                            Button {
+                                words.removeAll { $0 == word }
+                                saveWords()
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 8)
+                        Divider()
+                    }
+                }
+                .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: .controlBackgroundColor)))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(nsColor: .separatorColor), lineWidth: 0.5))
+            }
+
+            Spacer()
         }
-        .formStyle(.grouped)
         .padding()
         .onAppear { loadWords() }
     }
