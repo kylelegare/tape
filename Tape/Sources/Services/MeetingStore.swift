@@ -96,13 +96,11 @@ final class MeetingStore: ObservableObject {
             }
 
         let partial = frontmatter["partial"] == "true"
-        let source = frontmatter["source"]
 
         return Meeting(
             title: title,
             date: date,
             duration: duration,
-            source: source,
             partial: partial,
             filePath: url
         )

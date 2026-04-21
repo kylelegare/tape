@@ -6,7 +6,6 @@ struct Meeting: Identifiable {
     let title: String
     let date: Date
     let duration: TimeInterval?
-    let source: String?
     let partial: Bool
     let filePath: URL?
 }
