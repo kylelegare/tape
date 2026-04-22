@@ -110,17 +110,38 @@ final class MeetingStore: ObservableObject {
         )
     }
 
-    /// Returns the frontmatter title when it matches the filename slug, otherwise derives a
-    /// human-readable title from the filename (handles Finder renames where frontmatter is stale).
+    /// Derives the display title from the filename, falling back to the frontmatter title.
+    ///
+    /// Strips the leading date/time prefix (yyyy-MM-dd, or yyyy-MM-dd-HH-mm if present),
+    /// then title-cases the remainder. This makes the filename the source of truth so
+    /// Finder renames are reflected 1:1 in the app. Falls back to the frontmatter title
+    /// when there's no slug (e.g. auto-generated tape files before any rename).
     private func resolveTitle(frontmatterTitle: String, fileURL: URL) -> String {
         let baseName = fileURL.deletingPathExtension().lastPathComponent
         let parts = baseName.components(separatedBy: "-")
-        guard parts.count >= 5 else { return frontmatterTitle }
 
-        let fileSlug = parts.dropFirst(5).joined(separator: "-")
-        guard !fileSlug.isEmpty else { return frontmatterTitle }
+        // Detect how many leading components form the date/time prefix.
+        // Valid date prefix: parts[0] is 4-digit year, [1] and [2] are 2-digit month/day.
+        var prefixLength = 0
+        if parts.count >= 3,
+           parts[0].count == 4, Int(parts[0]) != nil,
+           parts[1].count == 2, Int(parts[1]) != nil,
+           parts[2].count == 2, Int(parts[2]) != nil {
+            prefixLength = 3
+            // Optional HH-mm after the date (tape's own filename format)
+            if parts.count >= 5,
+               parts[3].count == 2, Int(parts[3]) != nil,
+               parts[4].count == 2, Int(parts[4]) != nil {
+                prefixLength = 5
+            }
+        }
 
-        // Slugify the frontmatter title using the same algorithm as writeMeetingFile
+        let slugParts = parts.dropFirst(prefixLength)
+        guard !slugParts.isEmpty else { return frontmatterTitle }
+
+        let slug = slugParts.joined(separator: "-")
+
+        // Slugify the frontmatter title with the same algorithm used when saving
         let frontmatterSlug = String(frontmatterTitle
             .lowercased()
             .replacingOccurrences(of: "/", with: "-")
@@ -128,11 +149,11 @@ final class MeetingStore: ObservableObject {
             .replacingOccurrences(of: "[^a-z0-9\\-]", with: "", options: .regularExpression)
             .prefix(60))
 
-        // Slugs match — frontmatter title is authoritative (preserves casing, punctuation)
-        if fileSlug == frontmatterSlug { return frontmatterTitle }
+        // Slug matches frontmatter — use frontmatter title (preserves original casing/punctuation)
+        if slug == frontmatterSlug { return frontmatterTitle }
 
-        // Filename was renamed externally — convert slug back to a readable title
-        return fileSlug.split(separator: "-").map { $0.capitalized }.joined(separator: " ")
+        // Filename was renamed — convert slug to title case for display
+        return slug.split(separator: "-").map { $0.capitalized }.joined(separator: " ")
     }
 
     private func parseFrontmatter(_ content: String) -> [String: String] {
