@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <strong>Local-first meeting recorder for macOS</strong><br>
-  Record, transcribe, and save meetings as plain Markdown files.
+  <strong>Local-first voice recorder for macOS</strong><br>
+  Record, transcribe, and save as plain Markdown files.
 </p>
 
 <p align="center">
@@ -20,9 +20,9 @@
 
 Most transcription tools do a lot. Dashboards, coaching tools, integrations, cloud sync — and a subscription to hold it all together.
 
-tape doesn't do most of that. It records your meeting, transcribes it locally, and saves a Markdown file to your machine. That's the whole thing.
+tape doesn't do most of that. It records, transcribes locally, and saves a Markdown file to your machine. That's the whole thing.
 
-The idea is that you've already got LLMs, agents, and a notes workflow you like. tape just gets the transcript out of the way so those tools can do their thing. No account, no subscription, no cloud — everything stays on your machine.
+Works for meetings, but also for thinking out loud — record a brain dump on a walk, a note to yourself, anything you'd rather say than type. It all ends up as a plain text file your agents can read alongside everything else. No account, no subscription, no cloud — everything stays on your machine.
 
 ## What it does
 
