@@ -18,11 +18,11 @@
 
 ## Why this exists
 
-Most transcription tools do a lot. Dashboards, coaching tools, integrations, cloud sync — and a subscription to hold it all together.
+Most transcription tools do a lot. Dashboards, coaching tools, integrations, cloud sync, and a subscription to hold it all together.
 
 tape doesn't do most of that. It records, transcribes locally, and saves a Markdown file to your machine. That's the whole thing.
 
-Works for meetings, but also for thinking out loud — record a brain dump on a walk, a note to yourself, anything you'd rather say than type. It all ends up as a plain text file your agents can read alongside everything else. No account, no subscription, no cloud — everything stays on your machine.
+Get a transription of any calls, or meetings you're having. You can even just hit record and brain dump, send a note to yourself. It all ends up as a mark down file saved locally in a folder. Your agents can grab that file and do whatever with it. No account, no subscription, no cloud. 
 
 ## What it does
 
