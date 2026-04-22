@@ -82,7 +82,11 @@ final class MeetingStore: ObservableObject {
 
         let frontmatter = parseFrontmatter(content)
         guard let rawTitle = frontmatter["title"] else { return nil }
-        let title = decodeFrontmatterString(rawTitle)
+        let frontmatterTitle = decodeFrontmatterString(rawTitle)
+
+        // If the user renamed the file in Finder, the filename slug won't match the
+        // frontmatter title slug — use the filename-derived title in that case.
+        let title = resolveTitle(frontmatterTitle: frontmatterTitle, fileURL: url)
 
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
@@ -104,6 +108,31 @@ final class MeetingStore: ObservableObject {
             partial: partial,
             filePath: url
         )
+    }
+
+    /// Returns the frontmatter title when it matches the filename slug, otherwise derives a
+    /// human-readable title from the filename (handles Finder renames where frontmatter is stale).
+    private func resolveTitle(frontmatterTitle: String, fileURL: URL) -> String {
+        let baseName = fileURL.deletingPathExtension().lastPathComponent
+        let parts = baseName.components(separatedBy: "-")
+        guard parts.count >= 5 else { return frontmatterTitle }
+
+        let fileSlug = parts.dropFirst(5).joined(separator: "-")
+        guard !fileSlug.isEmpty else { return frontmatterTitle }
+
+        // Slugify the frontmatter title using the same algorithm as writeMeetingFile
+        let frontmatterSlug = String(frontmatterTitle
+            .lowercased()
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: " ", with: "-")
+            .replacingOccurrences(of: "[^a-z0-9\\-]", with: "", options: .regularExpression)
+            .prefix(60))
+
+        // Slugs match — frontmatter title is authoritative (preserves casing, punctuation)
+        if fileSlug == frontmatterSlug { return frontmatterTitle }
+
+        // Filename was renamed externally — convert slug back to a readable title
+        return fileSlug.split(separator: "-").map { $0.capitalized }.joined(separator: " ")
     }
 
     private func parseFrontmatter(_ content: String) -> [String: String] {
