@@ -132,23 +132,63 @@ final class MeetingStore: ObservableObject {
 
     // MARK: - Rename
 
-    /// Update the title in the meeting's .md frontmatter. Folder watcher reloads automatically.
-    func rename(_ meeting: Meeting, to newTitle: String) {
-        guard !newTitle.trimmingCharacters(in: .whitespaces).isEmpty,
+    /// Update the title in the meeting's frontmatter and rename the file on disk.
+    /// Returns the updated Meeting (with new filePath) so open panels can refresh their reference.
+    @discardableResult
+    func rename(_ meeting: Meeting, to newTitle: String) -> Meeting? {
+        let trimmed = newTitle.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty,
               let path = meeting.filePath,
               let content = try? String(contentsOf: path, encoding: .utf8)
-        else { return }
+        else { return nil }
 
+        // Update frontmatter title
         let updated = content
             .components(separatedBy: "\n")
             .map { line -> String in
-                let trimmed = line.trimmingCharacters(in: .whitespaces)
-                return trimmed.hasPrefix("title:") ? "title: \(encodeFrontmatterString(newTitle))" : line
+                let t = line.trimmingCharacters(in: .whitespaces)
+                return t.hasPrefix("title:") ? "title: \(encodeFrontmatterString(trimmed))" : line
             }
             .joined(separator: "\n")
 
-        try? updated.write(to: path, atomically: true, encoding: .utf8)
-        loadMeetings() // folder watcher only fires on directory changes, not file writes
+        // Build new filename — preserve yyyy-MM-dd-HH-mm prefix, replace slug
+        let baseName = path.deletingPathExtension().lastPathComponent
+        let parts = baseName.components(separatedBy: "-")
+        var newPath = path
+        if parts.count >= 5 {
+            let prefix = parts.prefix(5).joined(separator: "-")
+            let slug = String(trimmed
+                .lowercased()
+                .replacingOccurrences(of: "/", with: "-")
+                .replacingOccurrences(of: " ", with: "-")
+                .replacingOccurrences(of: "[^a-z0-9\\-]", with: "", options: .regularExpression)
+                .prefix(60))
+            newPath = path.deletingLastPathComponent()
+                .appendingPathComponent("\(prefix)-\(slug).md")
+        }
+
+        // Write updated frontmatter to original path first
+        do {
+            try updated.write(to: path, atomically: true, encoding: .utf8)
+        } catch {
+            loadMeetings()
+            return nil
+        }
+
+        // Rename file if the slug changed
+        var finalPath = path
+        if newPath != path {
+            do {
+                try FileManager.default.moveItem(at: path, to: newPath)
+                finalPath = newPath
+            } catch {
+                // Collision or permission error — frontmatter updated, filename unchanged
+                finalPath = path
+            }
+        }
+
+        loadMeetings()
+        return Meeting(title: trimmed, date: meeting.date, duration: meeting.duration, partial: meeting.partial, filePath: finalPath)
     }
 
     // MARK: - Context Editing

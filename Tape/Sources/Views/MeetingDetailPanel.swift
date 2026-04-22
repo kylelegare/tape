@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Floating panel window for viewing a meeting transcript and editing context.
 struct MeetingDetailView: View {
-    let meeting: Meeting
+    @State private var meeting: Meeting
     let store: MeetingStore
 
     @State private var editableTitle: String = ""
@@ -10,6 +10,11 @@ struct MeetingDetailView: View {
     @State private var transcript: String = ""
     @State private var hasUnsavedChanges = false
     @FocusState private var titleFocused: Bool
+
+    init(meeting: Meeting, store: MeetingStore) {
+        _meeting = State(initialValue: meeting)
+        self.store = store
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -67,7 +72,9 @@ struct MeetingDetailView: View {
     private func saveTitle() {
         let trimmed = editableTitle.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty, trimmed != meeting.title else { return }
-        store.rename(meeting, to: trimmed)
+        if let updated = store.rename(meeting, to: trimmed) {
+            meeting = updated
+        }
     }
 
     private var contextSection: some View {
