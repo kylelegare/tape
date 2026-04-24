@@ -60,6 +60,13 @@ struct GeneralSettingsTab: View {
                         .foregroundStyle(.secondary)
                 }
             }
+
+            Section {
+                Text("Recording laws vary. In some US states and most of Europe, all participants must consent to being recorded. You're responsible for getting consent where it's required.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .formStyle(.grouped)
         .padding()

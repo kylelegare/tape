@@ -110,6 +110,8 @@ tape defaults to `tiny` for fast transcription. For better accuracy — especial
 | **medium** | **~1.5 GB** | **Recommended for best everyday accuracy** |
 | large-v3 | ~3.1 GB | Highest quality, slowest |
 
+Models are pulled from the [`argmaxinc/whisperkit-coreml`](https://huggingface.co/argmaxinc/whisperkit-coreml) HuggingFace repo (OpenAI Whisper weights pre-converted to Core ML) and cached at `~/Library/Application Support/argmaxinc/WhisperKit/`. If a download stalls, pick the model again in Settings to retry.
+
 ## Privacy
 
 tape is designed around not needing to trust it:
@@ -123,6 +125,12 @@ tape is designed around not needing to trust it:
 ## Intentionally simple
 
 tape won't grow into a platform. No roadmap toward team plans, analytics, or AI meeting assistants. It records, transcribes, saves a file. That's the whole thing.
+
+## Recording consent
+
+Recording laws vary by jurisdiction. In some US states (California, Florida, Illinois, Maryland, Massachusetts, Pennsylvania, Washington, and others) and most of Europe, **every participant must consent to being recorded**. tape does not announce itself to other participants — you're responsible for getting consent where it's required.
+
+When in doubt: say "hey, I'm recording this for my notes" before you hit Record.
 
 ## License
 
